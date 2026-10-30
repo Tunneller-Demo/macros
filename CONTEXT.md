@@ -24,6 +24,18 @@ _Avoid_: meta, fase, déficit, superávit
 Las calorías diarias que se proponen a la persona: su gasto diario ajustado según su objetivo.
 _Avoid_: calorías recomendadas, ingesta, presupuesto calórico
 
+**Suelo de calorías**:
+La cifra por debajo de la cual el objetivo de bajar no reduce las calorías objetivo.
+_Avoid_: mínimo calórico, calorías mínimas, límite
+
+**Bajo peso**:
+La situación de una persona cuyo IMC es inferior a 18,5. Con ella no se propone bajar.
+_Avoid_: delgadez, infrapeso
+
+**Margen de error**:
+Cuánto puede desviarse el gasto real de una persona de su gasto diario calculado.
+_Avoid_: incertidumbre, error estándar, precisión
+
 **Macros**:
 La proteína, la grasa y los carbohidratos de la dieta, medidos en gramos.
 _Avoid_: macronutrientes, nutrientes
