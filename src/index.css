@@ -1,0 +1,36 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-fraunces: 'Fraunces Variable', serif;
+  --font-instrument: 'Instrument Sans Variable', sans-serif;
+
+  --color-bosque: #16352a;
+  --color-crema: #fbf3e4;
+  --color-crema-clara: #fffaf0;
+  --color-proteina: #d9512c;
+  --color-grasa: #e4a72b;
+  --color-carbohidratos: #6f9a5c;
+  --color-proteina-sobre-verde: #f08a68;
+  --color-carbohidratos-sobre-verde: #a5cb92;
+  --color-error-sobre-verde: var(--color-proteina-sobre-verde);
+
+  /* Tokens que usan los componentes de shadcn/ui */
+  --color-primary: var(--color-grasa);
+  --color-primary-foreground: var(--color-bosque);
+  --color-ring: var(--color-crema);
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

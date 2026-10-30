@@ -1,0 +1,282 @@
+import { useEffect, useRef, useState, type FormEvent, type Ref } from 'react'
+import { Button } from '@/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { cambiarUnidades, errorDe, type DatoNumerico, type Respuestas, type Unidades } from '@/datos'
+import {
+  MARCA,
+  NIVELES_DE_ACTIVIDAD,
+  NOTA_OBJETIVO,
+  NOTA_SEXO,
+  OBJETIVOS,
+  PREGUNTAS,
+  SEXOS,
+  UNIDADES,
+  anuncioDePregunta,
+  type Opcion,
+} from '@/textos'
+
+type PasoDeOpciones = {
+  tipo: 'opciones'
+  campo: 'objetivo' | 'sexo' | 'actividad'
+  opciones: Opcion[]
+  nota?: string
+}
+
+type PasoNumerico = {
+  tipo: 'numero'
+  campo: DatoNumerico
+  unidad: string
+  inputMode: 'numeric' | 'decimal'
+  unidadImperial?: string
+}
+
+type Paso = PasoDeOpciones | PasoNumerico
+
+const PASOS: Paso[] = [
+  { tipo: 'opciones', campo: 'objetivo', opciones: OBJETIVOS, nota: NOTA_OBJETIVO },
+  { tipo: 'opciones', campo: 'sexo', opciones: SEXOS, nota: NOTA_SEXO },
+  { tipo: 'numero', campo: 'edad', unidad: 'años', inputMode: 'numeric' },
+  { tipo: 'numero', campo: 'peso', unidad: 'kg', inputMode: 'decimal', unidadImperial: 'lb' },
+  { tipo: 'numero', campo: 'talla', unidad: 'cm', inputMode: 'numeric', unidadImperial: 'pies' },
+  { tipo: 'opciones', campo: 'actividad', opciones: NIVELES_DE_ACTIVIDAD },
+]
+
+const ID_DEL_TITULO = 'titulo-de-la-pregunta'
+const ID_DEL_ERROR = 'error-de-la-pregunta'
+
+type PropsDeOpciones = {
+  opciones: Opcion[]
+  valor: string
+  error: string | null
+  elegir: (valor: string) => void
+  primeraRef: Ref<HTMLButtonElement>
+}
+
+function Opciones({ opciones, valor, error, elegir, primeraRef }: PropsDeOpciones) {
+  return (
+    <ToggleGroup
+      type="single"
+      spacing={3}
+      value={valor}
+      aria-labelledby={ID_DEL_TITULO}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={error ? ID_DEL_ERROR : undefined}
+      className="grid w-full"
+    >
+      {opciones.map((opcion, i) => (
+        <ToggleGroupItem
+          key={opcion.valor}
+          ref={i === 0 ? primeraRef : undefined}
+          value={opcion.valor}
+          onClick={() => elegir(opcion.valor)}
+          className="h-auto w-full flex-col items-start gap-0 whitespace-normal rounded-2xl border border-crema/60 px-5 py-4 text-left text-crema data-[state=off]:hover:border-crema data-[state=on]:border-grasa data-[state=on]:bg-grasa data-[state=on]:text-bosque"
+        >
+          <span className="font-fraunces text-2xl font-normal">{opcion.nombre}</span>
+          {opcion.descripcion && (
+            <span className="text-sm font-normal opacity-80 in-data-[state=on]:opacity-100">{opcion.descripcion}</span>
+          )}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  )
+}
+
+function SelectorDeUnidades({ unidades, cambiar }: { unidades: Unidades; cambiar: (unidades: Unidades) => void }) {
+  return (
+    <ToggleGroup
+      type="single"
+      spacing={1}
+      aria-label="Unidades"
+      value={unidades}
+      onValueChange={(valor) => valor && cambiar(valor as Unidades)}
+      className="mb-6 rounded-full bg-crema/10 p-1"
+    >
+      {UNIDADES.map(({ valor, nombre }) => (
+        <ToggleGroupItem
+          key={valor}
+          value={valor}
+          className="rounded-full px-4 text-crema hover:bg-crema/10 hover:text-crema data-[state=on]:bg-grasa data-[state=on]:text-bosque"
+        >
+          {nombre}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  )
+}
+
+type PropsDeCampo = {
+  pregunta: string
+  unidad: string
+  inputMode: PasoNumerico['inputMode']
+  valor: string
+  error: string | null
+  poner: (valor: string) => void
+  compacto?: boolean
+  campoRef?: Ref<HTMLInputElement>
+}
+
+function CampoNumerico({ pregunta, unidad, inputMode, valor, error, poner, compacto = false, campoRef }: PropsDeCampo) {
+  return (
+    <label className={`flex min-w-0 flex-1 items-baseline border-b-2 border-crema/40 pb-1 focus-within:border-grasa ${compacto ? 'gap-1.5 min-[22rem]:gap-3' : 'gap-3'}`}>
+      <span className="sr-only">{pregunta}</span>
+      <input
+        ref={campoRef}
+        type="text"
+        inputMode={inputMode}
+        autoComplete="off"
+        value={valor}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? ID_DEL_ERROR : undefined}
+        onChange={(evento) => poner(evento.target.value)}
+        className={`w-full min-w-0 bg-transparent font-fraunces text-crema outline-none ${compacto ? 'text-4xl min-[22rem]:text-5xl sm:text-8xl' : 'text-7xl sm:text-8xl'}`}
+      />
+      <span className="text-xl text-crema/70">{unidad}</span>
+    </label>
+  )
+}
+
+type Props = {
+  respuestas: Respuestas
+  responder: (cambios: Partial<Respuestas>) => void
+  alTerminar: () => void
+}
+
+export function Asistente({ respuestas, responder, alTerminar }: Props) {
+  const [indice, setIndice] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const paso = PASOS[indice]
+  const esLaUltima = indice === PASOS.length - 1
+  const valor = respuestas[paso.campo]
+  const tituloRef = useRef<HTMLHeadingElement>(null)
+  const primeraOpcionRef = useRef<HTMLButtonElement>(null)
+  const primerCampoRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const destino = PASOS[indice].tipo === 'opciones' ? tituloRef : primerCampoRef
+    destino.current?.focus()
+  }, [indice])
+
+  function irA(nuevoIndice: number) {
+    setError(null)
+    setIndice(nuevoIndice)
+  }
+
+  function cambiar(cambios: Partial<Respuestas>) {
+    setError(null)
+    responder(cambios)
+  }
+
+  function seguir(evento: FormEvent) {
+    evento.preventDefault()
+    const errorDelPaso = errorDe(paso.campo, respuestas)
+    if (errorDelPaso !== null) {
+      setError(errorDelPaso)
+      const primerControl = paso.tipo === 'opciones' ? primeraOpcionRef : primerCampoRef
+      primerControl.current?.focus()
+    } else if (esLaUltima) alTerminar()
+    else irA(indice + 1)
+  }
+
+  function elegir(elegido: string) {
+    cambiar({ [paso.campo]: elegido })
+    if (!esLaUltima) irA(indice + 1)
+  }
+
+  function camposDe({ campo, unidad, unidadImperial, inputMode }: PasoNumerico) {
+    const enImperial = respuestas.unidades === 'imperial'
+    const comun = {
+      error,
+      inputMode,
+      pregunta: PREGUNTAS[campo],
+      unidad: enImperial && unidadImperial ? unidadImperial : unidad,
+    }
+    if (enImperial && campo === 'talla') {
+      return (
+        <div className="flex gap-3 min-[22rem]:gap-5">
+          <CampoNumerico {...comun} compacto campoRef={primerCampoRef} valor={respuestas.pies} poner={(pies) => cambiar({ pies })} />
+          <CampoNumerico {...comun} compacto unidad="pulgadas" valor={respuestas.pulgadas} poner={(pulgadas) => cambiar({ pulgadas })} />
+        </div>
+      )
+    }
+    return (
+      <CampoNumerico
+        {...comun}
+        campoRef={primerCampoRef}
+        valor={respuestas[campo]}
+        poner={(escrito) => cambiar({ [campo]: escrito })}
+      />
+    )
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col bg-bosque px-5 pb-20 pt-6 font-instrument sm:px-8">
+      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col">
+        <div className="flex items-center justify-between text-sm text-crema/70">
+          <span className="font-fraunces text-lg text-crema">{MARCA}</span>
+          <span>
+            {indice + 1} de {PASOS.length}
+          </span>
+        </div>
+        <div
+          role="progressbar"
+          aria-label="Progreso"
+          aria-valuemin={1}
+          aria-valuemax={PASOS.length}
+          aria-valuenow={indice + 1}
+          className="mt-3 flex gap-1.5"
+        >
+          {PASOS.map(({ campo }, i) => (
+            <span key={campo} className={`h-1 flex-1 rounded-full ${i <= indice ? 'bg-grasa' : 'bg-crema/15'}`} />
+          ))}
+        </div>
+        <form className="my-auto py-10" onSubmit={seguir}>
+          <h1
+            ref={tituloRef}
+            id={ID_DEL_TITULO}
+            tabIndex={-1}
+            className="font-fraunces text-[2.6rem] leading-[1.05] font-normal text-crema focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-ring sm:text-6xl"
+          >
+            <span className="sr-only">{anuncioDePregunta(indice + 1, PASOS.length)}</span> {PREGUNTAS[paso.campo]}
+          </h1>
+          <p className="mb-8 mt-3 min-h-5 text-sm text-crema/70">{paso.tipo === 'opciones' && paso.nota}</p>
+          {paso.tipo === 'opciones' ? (
+            <Opciones
+              key={paso.campo}
+              opciones={paso.opciones}
+              valor={valor}
+              error={error}
+              elegir={elegir}
+              primeraRef={primeraOpcionRef}
+            />
+          ) : (
+            <div key={paso.campo}>
+              {paso.unidadImperial && (
+                <SelectorDeUnidades
+                  unidades={respuestas.unidades}
+                  cambiar={(unidades) => cambiar(cambiarUnidades(respuestas, unidades))}
+                />
+              )}
+              {camposDe(paso)}
+            </div>
+          )}
+          <p id={ID_DEL_ERROR} role="alert" className="mt-3 min-h-5 text-sm font-medium text-error-sobre-verde">
+            {error}
+          </p>
+          <div className="mt-5 flex items-center justify-between">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => irA(indice - 1)}
+              className={`text-base font-normal text-crema/70 hover:bg-transparent hover:text-crema ${indice === 0 ? 'invisible' : ''}`}
+            >
+              Atrás
+            </Button>
+            <Button type="submit" className="h-auto rounded-full px-7 py-3 text-base font-semibold">
+              {esLaUltima ? 'Ver mi plan' : 'Seguir'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </main>
+  )
+}
