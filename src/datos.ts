@@ -32,9 +32,9 @@ export const SIN_RESPUESTAS: Respuestas = {
   actividad: '',
 }
 
-type CampoNumerico = 'edad' | 'peso' | 'talla'
+export type DatoNumerico = 'edad' | 'peso' | 'talla'
 
-const RANGOS: Record<CampoNumerico, { minimo: number; maximo: number; decimales: number }> = {
+const RANGOS: Record<DatoNumerico, { minimo: number; maximo: number; decimales: number }> = {
   edad: { minimo: 18, maximo: 100, decimales: 0 },
   peso: { minimo: 35, maximo: 250, decimales: 1 },
   talla: { minimo: 130, maximo: 220, decimales: 0 },
@@ -44,7 +44,7 @@ function aNumero(escrito: string) {
   return Number(escrito.trim().replace(',', '.'))
 }
 
-function errorNumerico(campo: CampoNumerico, escrito: string) {
+function errorNumerico(campo: DatoNumerico, escrito: string) {
   const { minimo, maximo, decimales } = RANGOS[campo]
   const { rango, formato } = ERRORES_DE_NUMERO[campo]
   const limpio = escrito.trim()

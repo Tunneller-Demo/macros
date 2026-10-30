@@ -178,7 +178,7 @@ describe('Validación de las preguntas', () => {
   const MENORES = 'Esta calculadora es para personas adultas, a partir de 18 años'
   const SIN_OPCION = 'Elige una opción para seguir'
 
-  async function hasta(user: Usuario, dato: Dato) {
+  async function hastaElDato(user: Usuario, dato: Dato) {
     await hastaLaEdad(user)
     if (dato === 'edad') return
     await user.type(campo(), '35')
@@ -196,6 +196,7 @@ describe('Validación de las preguntas', () => {
     expect(pregunta('¿Qué quieres hacer con tu peso?')).toBeVisible()
     expect(screen.getByRole('alert')).toHaveTextContent(SIN_OPCION)
     expect(screen.getByRole('radiogroup')).toHaveAccessibleDescription(SIN_OPCION)
+    expect(screen.getByRole('radiogroup')).toBeInvalid()
   })
 
   it('en la última pregunta, sin opción elegida, «Ver mi plan» tampoco avanza', async () => {
@@ -219,6 +220,8 @@ describe('Validación de las preguntas', () => {
     ['edad', '25,5', `${RANGO_EDAD}, sin decimales`],
     ['peso', '', RANGO_PESO],
     ['peso', '1e2', RANGO_PESO],
+    ['peso', '6 5', RANGO_PESO],
+    ['peso', '-65', RANGO_PESO],
     ['peso', '65,', RANGO_PESO],
     ['peso', '34,9', RANGO_PESO],
     ['peso', '34.9', RANGO_PESO],
@@ -231,7 +234,7 @@ describe('Validación de las preguntas', () => {
     ['talla', '170,5', `${RANGO_TALLA}, sin decimales`],
   ] as [Dato, string, string][])('%s «%s» no avanza y explica qué corregir, asociado al campo', async (dato, escrito, mensaje) => {
     const user = abrirApp()
-    await hasta(user, dato)
+    await hastaElDato(user, dato)
     const enunciado = screen.getByRole('heading').textContent
 
     if (escrito) await user.type(campo(), escrito)
@@ -253,11 +256,12 @@ describe('Validación de las preguntas', () => {
     ['peso', '250.0'],
     ['peso', '65,5'],
     ['peso', '65.5'],
+    ['peso', ' 65 '],
     ['talla', '130'],
     ['talla', '220'],
   ] as [Dato, string][])('%s «%s» vale y avanza', async (dato, escrito) => {
     const user = abrirApp()
-    await hasta(user, dato)
+    await hastaElDato(user, dato)
     const enunciado = screen.getByRole('heading').textContent
 
     await user.type(campo(), escrito)
@@ -327,7 +331,7 @@ describe('Validación de las preguntas', () => {
     ['talla', 'numeric'],
   ] as [Dato, string][])('el campo %s abre el teclado numérico', async (dato, teclado) => {
     const user = abrirApp()
-    await hasta(user, dato)
+    await hastaElDato(user, dato)
 
     expect(campo()).toHaveAttribute('inputmode', teclado)
   })
