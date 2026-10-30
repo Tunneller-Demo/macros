@@ -7,7 +7,9 @@
   --color-bosque: #16352a;
   --color-crema: #fbf3e4;
   --color-crema-clara: #fffaf0;
+  --color-proteina: #d9512c;
   --color-grasa: #e4a72b;
+  --color-carbohidratos: #6f9a5c;
 
   /* Tokens que usan los componentes de shadcn/ui */
   --color-primary: var(--color-grasa);

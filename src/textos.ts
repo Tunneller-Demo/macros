@@ -1,3 +1,4 @@
+import type { Macro } from '@/calculo'
 import type { NivelDeActividad, Objetivo, Sexo } from '@/datos'
 
 export const MARCA = 'Macros'
@@ -32,3 +33,9 @@ export const PREGUNTAS = {
 }
 
 export const NOTA_SEXO = 'Se usa solo porque la fórmula lo requiere'
+
+export const MACROS: Opcion<Macro>[] = [
+  { valor: 'proteina', nombre: 'Proteína' },
+  { valor: 'grasa', nombre: 'Grasa' },
+  { valor: 'carbohidratos', nombre: 'Carbohidratos' },
+]

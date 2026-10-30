@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { abrirApp, opcion, recorrerAsistente, responderHastaLaActividad, type SeisDatos, type Usuario } from '@/test/recorrer'
 
@@ -177,5 +177,106 @@ describe('Resultados', () => {
 
     expect(screen.getByText(reposo)).toBeVisible()
     expect(screen.getByText(gasto)).toBeVisible()
+  })
+})
+
+describe('Macros del día', () => {
+  type Cifras = [gramos: string, porcentaje: string]
+
+  const hombreDe150Kg: SeisDatos = {
+    objetivo: 'Bajar',
+    sexo: 'Hombre',
+    edad: '40',
+    peso: '150',
+    talla: '180',
+    actividad: 'Sedentaria',
+  }
+
+  function macro(nombre: string) {
+    const fila = screen.getAllByRole('listitem').find((item) => within(item).queryByText(nombre))
+    if (!fila) throw new Error(`No se ve el macro ${nombre}`)
+    return within(fila)
+  }
+
+  function comprobarMacro(nombre: string, gramos: string, porcentaje: string) {
+    expect(macro(nombre).getByText(gramos)).toBeVisible()
+    expect(macro(nombre).getByText(porcentaje)).toBeVisible()
+  }
+
+  it('muestra una tarjeta con una fila por macro, en orden', async () => {
+    await recorrerAsistente({ ...mujerDe35, objetivo: 'Bajar' })
+
+    expect(screen.getByRole('heading', { name: 'Tus macros del día' })).toBeVisible()
+    const filas = screen.getAllByRole('listitem').map((item) => item.textContent)
+    expect(filas).toEqual([
+      expect.stringContaining('Proteína'),
+      expect.stringContaining('Grasa'),
+      expect.stringContaining('Carbohidratos'),
+    ])
+  })
+
+  it.each([
+    ['Bajar', ['117 g', '34 %'], ['46 g', '30 %'], ['125 g', '36 %']],
+    ['Mantener', ['91 g', '19 %'], ['63 g', '30 %'], ['239 g', '51 %']],
+    ['Subir', ['104 g', '18 %'], ['76 g', '30 %'], ['296 g', '52 %']],
+  ] as [SeisDatos['objetivo'], Cifras, Cifras, Cifras][])('con objetivo de %s, reparte los macros', async (objetivo, proteina, grasa, carbohidratos) => {
+    await recorrerAsistente({ ...mujerDe35, objetivo })
+
+    comprobarMacro('Proteína', ...proteina)
+    comprobarMacro('Grasa', ...grasa)
+    comprobarMacro('Carbohidratos', ...carbohidratos)
+  })
+
+  it('limita la proteína al 35 % y los carbohidratos siguen siendo el resto', async () => {
+    await recorrerAsistente(hombreDe150Kg)
+
+    expect(screen.getByText('2902')).toBeVisible()
+    comprobarMacro('Proteína', '254 g', '35 %')
+    comprobarMacro('Grasa', '97 g', '30 %')
+    comprobarMacro('Carbohidratos', '254 g', '35 %')
+  })
+
+  it('el tope de proteína vale para cualquier objetivo', async () => {
+    await recorrerAsistente({
+      objetivo: 'Mantener',
+      sexo: 'Mujer',
+      edad: '99',
+      peso: '150',
+      talla: '130',
+      actividad: 'Sedentaria',
+    })
+
+    comprobarMacro('Proteína', '203 g', '35 %')
+  })
+
+  it.each([
+    [{ ...mujerDe35, objetivo: 'Bajar' }],
+    [{ ...mujerDe35, objetivo: 'Mantener' }],
+    [{ ...mujerDe35, objetivo: 'Subir' }],
+    [hombreDe150Kg],
+    // 12,5 % y 57,5 %: redondeados por separado sumarían 101.
+    [{ objetivo: 'Mantener', sexo: 'Mujer', edad: '18', peso: '42', talla: '188', actividad: 'Sedentaria' }],
+  ] as [SeisDatos][])('los porcentajes suman 100: %o', async (datos) => {
+    await recorrerAsistente(datos)
+
+    const porcentajes = screen.getAllByText(/^\d+ %$/).map((cifra) => Number.parseInt(cifra.textContent))
+    expect(porcentajes).toHaveLength(3)
+    expect(porcentajes.reduce((suma, porcentaje) => suma + porcentaje)).toBe(100)
+  })
+
+  it('el reparto no se puede modificar', async () => {
+    await recorrerAsistente({ ...mujerDe35, objetivo: 'Bajar' })
+
+    for (const control of ['textbox', 'spinbutton', 'slider', 'radio', 'checkbox', 'combobox']) {
+      expect(screen.queryByRole(control)).not.toBeInTheDocument()
+    }
+    expect(within(screen.getByRole('list')).queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('oculta el plato a los lectores de pantalla, que leen la lista', async () => {
+    await recorrerAsistente({ ...mujerDe35, objetivo: 'Bajar' })
+
+    expect(document.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByRole('list')).toBeVisible()
   })
 })
