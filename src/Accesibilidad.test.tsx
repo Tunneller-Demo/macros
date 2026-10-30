@@ -306,32 +306,33 @@ describe('Metadatos para compartir', () => {
   const URL_DE_LA_IMAGEN = 'https://tunneller-demo.github.io/macros/og-imagen.png'
 
   const documento = new DOMParser().parseFromString(html, 'text/html')
-  const meta = (selector: string) => documento.querySelector(`meta[${selector}]`)?.getAttribute('content')
-  const propiedad = (nombre: string) => meta(`property="${nombre}"`)
-  const nombre = (valor: string) => meta(`name="${valor}"`)
+  const contenidoDeMeta = (atributo: string) =>
+    documento.querySelector(`meta[${atributo}]`)?.getAttribute('content')
+  const metaPorPropiedad = (propiedad: string) => contenidoDeMeta(`property="${propiedad}"`)
+  const metaPorNombre = (nombre: string) => contenidoDeMeta(`name="${nombre}"`)
   const publico = (archivo: string) => readFileSync(`public/${archivo}`)
 
-  it('da el título y la descripción de la Especificación a las tarjetas', () => {
+  it('da el título y la descripción a las tarjetas', () => {
     expect(documento.title).toBe(TITULO)
-    expect(nombre('description')).toBe(DESCRIPCION)
-    expect(propiedad('og:title')).toBe(TITULO)
-    expect(propiedad('og:description')).toBe(DESCRIPCION)
-    expect(nombre('twitter:title')).toBe(TITULO)
-    expect(nombre('twitter:description')).toBe(DESCRIPCION)
+    expect(metaPorNombre('description')).toBe(DESCRIPCION)
+    expect(metaPorPropiedad('og:title')).toBe(TITULO)
+    expect(metaPorPropiedad('og:description')).toBe(DESCRIPCION)
+    expect(metaPorNombre('twitter:title')).toBe(TITULO)
+    expect(metaPorNombre('twitter:description')).toBe(DESCRIPCION)
   })
 
   it('identifica la página en Open Graph y pide la tarjeta grande de Twitter', () => {
-    expect(propiedad('og:type')).toBe('website')
-    expect(propiedad('og:url')).toBe('https://tunneller-demo.github.io/macros/')
-    expect(propiedad('og:locale')).toBe('es_ES')
-    expect(nombre('twitter:card')).toBe('summary_large_image')
+    expect(metaPorPropiedad('og:type')).toBe('website')
+    expect(metaPorPropiedad('og:url')).toBe('https://tunneller-demo.github.io/macros/')
+    expect(metaPorPropiedad('og:locale')).toBe('es_ES')
+    expect(metaPorNombre('twitter:card')).toBe('summary_large_image')
   })
 
   it('publica la imagen con URL absoluta y texto alternativo', () => {
-    expect(propiedad('og:image')).toBe(URL_DE_LA_IMAGEN)
-    expect(nombre('twitter:image')).toBe(URL_DE_LA_IMAGEN)
-    expect(propiedad('og:image:alt')).toBeTruthy()
-    expect(nombre('twitter:image:alt')).toBe(propiedad('og:image:alt'))
+    expect(metaPorPropiedad('og:image')).toBe(URL_DE_LA_IMAGEN)
+    expect(metaPorNombre('twitter:image')).toBe(URL_DE_LA_IMAGEN)
+    expect(metaPorPropiedad('og:image:alt')).toBeTruthy()
+    expect(metaPorNombre('twitter:image:alt')).toBe(metaPorPropiedad('og:image:alt'))
   })
 
   it('la imagen es un PNG de 1200×630', () => {
@@ -339,9 +340,9 @@ describe('Metadatos para compartir', () => {
 
     expect(imagen.subarray(1, 4).toString()).toBe('PNG')
     expect([imagen.readUInt32BE(16), imagen.readUInt32BE(20)]).toEqual([1200, 630])
-    expect(propiedad('og:image:type')).toBe('image/png')
-    expect(propiedad('og:image:width')).toBe('1200')
-    expect(propiedad('og:image:height')).toBe('630')
+    expect(metaPorPropiedad('og:image:type')).toBe('image/png')
+    expect(metaPorPropiedad('og:image:width')).toBe('1200')
+    expect(metaPorPropiedad('og:image:height')).toBe('630')
   })
 
   it('el favicon es el plato, con los tres colores de los macros', () => {
