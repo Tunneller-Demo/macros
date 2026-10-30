@@ -1,6 +1,16 @@
 import { cleanup, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { abrirApp, opcion, recorrerAsistente, responderHastaLaActividad, type SeisDatos, type Usuario } from '@/test/recorrer'
+import {
+  abrirApp,
+  campoDePies,
+  campoDePulgadas,
+  opcion,
+  recorrerAsistente,
+  recorrerEnImperial,
+  responderHastaLaActividad,
+  type SeisDatos,
+  type Usuario,
+} from '@/test/recorrer'
 
 const mujerDe35: Omit<SeisDatos, 'objetivo'> = {
   sexo: 'Mujer',
@@ -65,6 +75,18 @@ function cifraDe(comida: HTMLElement, nombre: string) {
 async function hastaLaEdad(user: Usuario) {
   await user.click(opcion('Bajar'))
   await user.click(opcion('Mujer'))
+}
+
+type Dato = 'edad' | 'peso' | 'talla'
+
+async function hastaElDato(user: Usuario, dato: Dato) {
+  await hastaLaEdad(user)
+  if (dato === 'edad') return
+  await user.type(campo(), '35')
+  await user.click(seguir())
+  if (dato === 'peso') return
+  await user.type(campo(), '65')
+  await user.click(seguir())
 }
 
 function hastaLaActividad(user: Usuario) {
@@ -182,23 +204,11 @@ describe('Asistente', () => {
 })
 
 describe('Validación de las preguntas', () => {
-  type Dato = 'edad' | 'peso' | 'talla'
-
   const RANGO_EDAD = 'Introduce una edad entre 18 y 100 años'
   const RANGO_PESO = 'Introduce un peso entre 35 y 250 kg'
   const RANGO_TALLA = 'Introduce una talla entre 130 y 220 cm'
   const MENORES = 'Esta calculadora es para personas adultas, a partir de 18 años'
   const SIN_OPCION = 'Elige una opción para seguir'
-
-  async function hastaElDato(user: Usuario, dato: Dato) {
-    await hastaLaEdad(user)
-    if (dato === 'edad') return
-    await user.type(campo(), '35')
-    await user.click(seguir())
-    if (dato === 'peso') return
-    await user.type(campo(), '65')
-    await user.click(seguir())
-  }
 
   it('sin una opción elegida, no avanza y pide elegir, asociado a las opciones', async () => {
     const user = abrirApp()
@@ -346,6 +356,378 @@ describe('Validación de las preguntas', () => {
     await hastaElDato(user, dato)
 
     expect(campo()).toHaveAttribute('inputmode', teclado)
+  })
+})
+
+describe('Unidades', () => {
+  const RANGO_LB = 'Introduce un peso entre 78 y 551 lb'
+  const RANGO_PIES = `Introduce una talla entre 4'4" y 7'2"`
+
+  const EQUIVALENTES_DE_MUJER_DE_35 = { ...mujerDe35, peso: '143,3', pies: '5', pulgadas: '5' }
+
+  function cifrasDe(elemento: HTMLElement) {
+    return (elemento.textContent ?? '').match(/\d+/g)?.map(Number) ?? []
+  }
+
+  it('son métricas por defecto y el mismo selector se ve en peso y en talla, no en la edad', async () => {
+    const user = abrirApp()
+    await hastaLaEdad(user)
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+
+    await user.type(campo(), '35')
+    await user.click(seguir())
+    expect(opcion('Métricas')).toBeChecked()
+    expect(screen.getByRole('textbox', { name: /kg$/ })).toBeVisible()
+
+    await user.click(opcion('Imperiales'))
+    expect(screen.getByRole('textbox', { name: /lb$/ })).toBeVisible()
+
+    await user.type(campo(), '143')
+    await user.click(seguir())
+    expect(opcion('Imperiales')).toBeChecked()
+    expect(campoDePies()).toBeVisible()
+    expect(campoDePulgadas()).toBeVisible()
+
+    await user.click(opcion('Métricas'))
+    expect(screen.getByRole('textbox', { name: /cm$/ })).toBeVisible()
+    await user.click(atras())
+    expect(opcion('Métricas')).toBeChecked()
+  })
+
+  it.each([
+    ['', RANGO_LB],
+    ['77,9', RANGO_LB],
+    ['77.9', RANGO_LB],
+    ['551,1', RANGO_LB],
+    ['551.1', RANGO_LB],
+    ['143,33', `${RANGO_LB}, con un decimal como máximo`],
+  ])('en imperial, el peso «%s» no avanza y da el rango en libras', async (escrito, mensaje) => {
+    const user = abrirApp()
+    await hastaElDato(user, 'peso')
+    await user.click(opcion('Imperiales'))
+
+    if (escrito) await user.type(campo(), escrito)
+    await user.click(seguir())
+
+    expect(pregunta('¿Cuánto pesas?')).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent(mensaje)
+    expect(campo()).toHaveAccessibleDescription(mensaje)
+    expect(campo()).toBeInvalid()
+  })
+
+  it.each(['78', '78,0', '78.0', '143,3', '143.3', '551', '551.0'])('en imperial, el peso «%s» vale y avanza', async (escrito) => {
+    const user = abrirApp()
+    await hastaElDato(user, 'peso')
+    await user.click(opcion('Imperiales'))
+
+    await user.type(campo(), escrito)
+    await user.click(seguir())
+
+    expect(pregunta('¿Cuánto mides?')).toBeVisible()
+  })
+
+  it.each([
+    ['', '', RANGO_PIES],
+    ['', '5', RANGO_PIES],
+    ['abc', '', RANGO_PIES],
+    ['4', '3', RANGO_PIES],
+    ['4', '', RANGO_PIES],
+    ['7', '3', RANGO_PIES],
+    ['8', '', RANGO_PIES],
+    ['5', '12', `${RANGO_PIES}, con pulgadas de 0 a 11`],
+    ['5', '5,5', `${RANGO_PIES}, sin decimales`],
+    ['5,5', '', `${RANGO_PIES}, sin decimales`],
+  ])('en imperial, la talla %s pies y «%s» pulgadas no avanza y da el rango', async (pies, pulgadas, mensaje) => {
+    const user = abrirApp()
+    await hastaElDato(user, 'talla')
+    await user.click(opcion('Imperiales'))
+
+    if (pies) await user.type(campoDePies(), pies)
+    if (pulgadas) await user.type(campoDePulgadas(), pulgadas)
+    await user.click(seguir())
+
+    expect(pregunta('¿Cuánto mides?')).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent(mensaje)
+    expect(campoDePies()).toHaveAccessibleDescription(mensaje)
+    expect(campoDePulgadas()).toHaveAccessibleDescription(mensaje)
+    expect(campoDePies()).toBeInvalid()
+    expect(campoDePulgadas()).toBeInvalid()
+  })
+
+  it.each([
+    ['4', '4'],
+    ['5', ''],
+    ['5', '0'],
+    ['5', '11'],
+    ['7', '2'],
+    ['7', '0'],
+  ])('en imperial, la talla %s pies y «%s» pulgadas vale y avanza', async (pies, pulgadas) => {
+    const user = abrirApp()
+    await hastaElDato(user, 'talla')
+    await user.click(opcion('Imperiales'))
+
+    await user.type(campoDePies(), pies)
+    if (pulgadas) await user.type(campoDePulgadas(), pulgadas)
+    await user.click(seguir())
+
+    expect(pregunta('¿Cómo es tu día a día?')).toBeVisible()
+  })
+
+  it('las pulgadas abren el teclado numérico y Enter equivale a Seguir', async () => {
+    const user = abrirApp()
+    await hastaElDato(user, 'talla')
+    await user.click(opcion('Imperiales'))
+
+    expect(campoDePies()).toHaveAttribute('inputmode', 'numeric')
+    expect(campoDePulgadas()).toHaveAttribute('inputmode', 'numeric')
+
+    await user.type(campoDePies(), '5')
+    await user.type(campoDePulgadas(), '{Enter}')
+    expect(pregunta('¿Cómo es tu día a día?')).toBeVisible()
+  })
+
+  it.each([
+    ['65', '143,3'],
+    ['65,5', '144,4'],
+    ['100', '220,5'],
+  ])('al cambiar a imperial, %s kg pasan a %s lb', async (kilos, libras) => {
+    const user = abrirApp()
+    await hastaElDato(user, 'peso')
+    await user.type(campo(), kilos)
+
+    await user.click(opcion('Imperiales'))
+
+    expect(campo()).toHaveValue(libras)
+  })
+
+  it.each([
+    ['143,3', '65'],
+    ['143.3', '65'],
+    ['144,4', '65,5'],
+    ['78', '35,4'],
+    ['551', '249,9'],
+  ])('al cambiar a métricas, %s lb pasan a %s kg', async (libras, kilos) => {
+    const user = abrirApp()
+    await hastaElDato(user, 'peso')
+    await user.click(opcion('Imperiales'))
+    await user.type(campo(), libras)
+
+    await user.click(opcion('Métricas'))
+
+    expect(campo()).toHaveValue(kilos)
+  })
+
+  it.each([
+    ['165', '5', '5'],
+    ['170', '5', '7'],
+    ['183', '6', '0'],
+    // 71,7 pulgadas: se redondea el total, y nunca salen 12 pulgadas.
+    ['182', '6', '0'],
+  ])('al cambiar a imperial, %s cm pasan a %s pies y %s pulgadas', async (centimetros, pies, pulgadas) => {
+    const user = abrirApp()
+    await hastaElDato(user, 'talla')
+    await user.type(campo(), centimetros)
+
+    await user.click(opcion('Imperiales'))
+
+    expect(campoDePies()).toHaveValue(pies)
+    expect(campoDePulgadas()).toHaveValue(pulgadas)
+  })
+
+  it.each([
+    ['5', '5', '165'],
+    ['5', '', '152'],
+    ['4', '4', '132'],
+    ['7', '2', '218'],
+  ])('al cambiar a métricas, %s pies y «%s» pulgadas pasan a %s cm', async (pies, pulgadas, centimetros) => {
+    const user = abrirApp()
+    await hastaElDato(user, 'talla')
+    await user.click(opcion('Imperiales'))
+    await user.type(campoDePies(), pies)
+    if (pulgadas) await user.type(campoDePulgadas(), pulgadas)
+
+    await user.click(opcion('Métricas'))
+
+    expect(campo()).toHaveValue(centimetros)
+  })
+
+  it('un peso vacío sigue vacío y uno que no se entiende se vacía al cambiar', async () => {
+    const user = abrirApp()
+    await hastaElDato(user, 'peso')
+
+    await user.click(opcion('Imperiales'))
+    expect(campo()).toHaveValue('')
+
+    await user.type(campo(), 'abc')
+    await user.click(opcion('Métricas'))
+    expect(campo()).toHaveValue('')
+  })
+
+  it('una talla vacía sigue vacía y una que no se entiende se vacía al cambiar', async () => {
+    const user = abrirApp()
+    await hastaElDato(user, 'talla')
+
+    await user.click(opcion('Imperiales'))
+    expect(campoDePies()).toHaveValue('')
+    expect(campoDePulgadas()).toHaveValue('')
+
+    await user.type(campoDePies(), 'abc')
+    await user.click(opcion('Métricas'))
+    expect(campo()).toHaveValue('')
+
+    await user.type(campo(), 'abc')
+    await user.click(opcion('Imperiales'))
+    expect(campoDePies()).toHaveValue('')
+    expect(campoDePulgadas()).toHaveValue('')
+  })
+
+  it('un dato inválido se convierte sin ajustarlo y su error sale en la unidad nueva', async () => {
+    const user = abrirApp()
+    await hastaElDato(user, 'peso')
+    await user.type(campo(), '300')
+
+    await user.click(opcion('Imperiales'))
+    expect(campo()).toHaveValue('661,4')
+
+    await user.click(seguir())
+    expect(screen.getByRole('alert')).toHaveTextContent(RANGO_LB)
+  })
+
+  it('cambiar de unidades quita el error, que estaba en la unidad anterior', async () => {
+    const user = abrirApp()
+    await hastaElDato(user, 'peso')
+    await user.click(seguir())
+    expect(screen.getByRole('alert')).toHaveTextContent('Introduce un peso entre 35 y 250 kg')
+
+    await user.click(opcion('Imperiales'))
+
+    expect(screen.getByRole('alert')).toBeEmptyDOMElement()
+  })
+
+  it.each([
+    ['35', '78'],
+    ['250', '551'],
+  ])('un peso válido sigue siendo válido al convertirlo: %s kg pasan a %s lb', async (kilos, libras) => {
+    const user = abrirApp()
+    await hastaElDato(user, 'peso')
+    await user.type(campo(), kilos)
+
+    await user.click(opcion('Imperiales'))
+
+    expect(campo()).toHaveValue(libras)
+    await user.click(seguir())
+    expect(pregunta('¿Cuánto mides?')).toBeVisible()
+  })
+
+  it.each([
+    ['130', '4', '4'],
+    ['220', '7', '2'],
+  ])('una talla válida sigue siendo válida al convertirla: %s cm pasan a %s pies y %s pulgadas', async (centimetros, pies, pulgadas) => {
+    const user = abrirApp()
+    await hastaElDato(user, 'talla')
+    await user.type(campo(), centimetros)
+
+    await user.click(opcion('Imperiales'))
+
+    expect(campoDePies()).toHaveValue(pies)
+    expect(campoDePulgadas()).toHaveValue(pulgadas)
+    await user.click(seguir())
+    expect(pregunta('¿Cómo es tu día a día?')).toBeVisible()
+  })
+
+  it('cambiar de unidades en la talla no deja atrás un peso imposible de corregir', async () => {
+    const user = abrirApp()
+    await hastaElDato(user, 'peso')
+    await user.type(campo(), '35')
+    await user.click(seguir())
+    await user.type(campo(), '165')
+    await user.click(opcion('Imperiales'))
+    await user.click(seguir())
+    await user.click(opcion('Sedentaria'))
+
+    await user.click(verMiPlan())
+
+    expect(screen.getByRole('heading', { name: 'Tus calorías objetivo' })).toBeVisible()
+  })
+
+  it.each([
+    ['Bajar', 1383],
+    ['Mantener', 1883],
+    ['Subir', 2283],
+  ] as const)('con datos equivalentes en imperial, objetivo de %s, las cifras son casi las mismas', async (objetivo, calorias) => {
+    await recorrerEnImperial({ ...EQUIVALENTES_DE_MUJER_DE_35, objetivo })
+
+    // 5'5" son 165,1 cm: la conversión no coincide al entero, pero apenas se aleja.
+    const cifra = Number(within(screen.getByRole('banner')).getByText(/^\d+$/).textContent)
+    expect(Math.abs(cifra - calorias)).toBeLessThanOrEqual(2)
+  })
+
+  it('con datos equivalentes en imperial, el metabolismo, el gasto, los macros y las comidas casi no cambian', async () => {
+    function cifras() {
+      return [...cifrasDe(screen.getByText(/Metabolismo en reposo/)), ...cifrasDe(screen.getByRole('main'))]
+    }
+    await recorrerAsistente({ ...mujerDe35, objetivo: 'Mantener' })
+    const enMetrico = cifras()
+    cleanup()
+
+    await recorrerEnImperial({ ...EQUIVALENTES_DE_MUJER_DE_35, objetivo: 'Mantener' })
+
+    const enImperial = cifras()
+    expect(enImperial).toHaveLength(enMetrico.length)
+    enImperial.forEach((cifra, i) => expect(Math.abs(cifra - enMetrico[i])).toBeLessThanOrEqual(2))
+  })
+
+  it('el cálculo usa el dato escrito, no el métrico redondeado', async () => {
+    await recorrerEnImperial({
+      objetivo: 'Mantener',
+      sexo: 'Hombre',
+      edad: '40',
+      peso: '330,7',
+      pies: '7',
+      pulgadas: '2',
+      actividad: 'Sedentaria',
+    })
+
+    // 330,7 lb son 150,003 kg y 7'2" son 218,44 cm: 10·150,003 + 6,25·218,44 − 200 + 5 = 2670,28.
+    expect(screen.getByText('2670 kcal')).toBeVisible()
+  })
+
+  it('el resumen muestra los datos en las unidades elegidas y Editar las conserva', async () => {
+    const user = await recorrerEnImperial({ ...mujerDe35, objetivo: 'Bajar', peso: '143.3', pies: '5', pulgadas: '' })
+
+    const resumen = within(screen.getByRole('banner'))
+    expect(resumen.getByText('143,3 lb')).toBeVisible()
+    expect(resumen.getByText(`5'0"`)).toBeVisible()
+    expect(resumen.queryByText(/kg|cm/)).not.toBeInTheDocument()
+
+    await user.click(editar())
+    for (let paso = 0; paso < 3; paso++) await user.click(seguir())
+    expect(opcion('Imperiales')).toBeChecked()
+    expect(campo()).toHaveValue('143.3')
+
+    await user.click(seguir())
+    expect(campoDePies()).toHaveValue('5')
+    expect(campoDePulgadas()).toHaveValue('')
+
+    await user.click(seguir())
+    await user.click(verMiPlan())
+    expect(within(screen.getByRole('banner')).getByText('143,3 lb')).toBeVisible()
+  })
+
+  it('volver a métricas desde Editar cambia también el resumen', async () => {
+    const user = await recorrerEnImperial({ ...EQUIVALENTES_DE_MUJER_DE_35, objetivo: 'Bajar' })
+
+    await user.click(editar())
+    for (let paso = 0; paso < 3; paso++) await user.click(seguir())
+    await user.click(opcion('Métricas'))
+    await user.click(seguir())
+    await user.click(seguir())
+    await user.click(verMiPlan())
+
+    const resumen = within(screen.getByRole('banner'))
+    expect(resumen.getByText('65 kg')).toBeVisible()
+    expect(resumen.getByText('165 cm')).toBeVisible()
+    expect(resumen.queryByText(/lb|"/)).not.toBeInTheDocument()
   })
 })
 

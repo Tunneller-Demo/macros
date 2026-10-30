@@ -1,8 +1,18 @@
 import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { errorDe, type DatoNumerico, type Respuestas } from '@/datos'
-import { MARCA, NIVELES_DE_ACTIVIDAD, NOTA_OBJETIVO, NOTA_SEXO, OBJETIVOS, PREGUNTAS, SEXOS, type Opcion } from '@/textos'
+import { cambiarUnidades, errorDe, type DatoNumerico, type Respuestas, type Unidades } from '@/datos'
+import {
+  MARCA,
+  NIVELES_DE_ACTIVIDAD,
+  NOTA_OBJETIVO,
+  NOTA_SEXO,
+  OBJETIVOS,
+  PREGUNTAS,
+  SEXOS,
+  UNIDADES,
+  type Opcion,
+} from '@/textos'
 
 type PasoDeOpciones = {
   tipo: 'opciones'
@@ -16,6 +26,7 @@ type PasoNumerico = {
   campo: DatoNumerico
   unidad: string
   inputMode: 'numeric' | 'decimal'
+  unidadImperial?: string
 }
 
 type Paso = PasoDeOpciones | PasoNumerico
@@ -24,8 +35,8 @@ const PASOS: Paso[] = [
   { tipo: 'opciones', campo: 'objetivo', opciones: OBJETIVOS, nota: NOTA_OBJETIVO },
   { tipo: 'opciones', campo: 'sexo', opciones: SEXOS, nota: NOTA_SEXO },
   { tipo: 'numero', campo: 'edad', unidad: 'años', inputMode: 'numeric' },
-  { tipo: 'numero', campo: 'peso', unidad: 'kg', inputMode: 'decimal' },
-  { tipo: 'numero', campo: 'talla', unidad: 'cm', inputMode: 'numeric' },
+  { tipo: 'numero', campo: 'peso', unidad: 'kg', inputMode: 'decimal', unidadImperial: 'lb' },
+  { tipo: 'numero', campo: 'talla', unidad: 'cm', inputMode: 'numeric', unidadImperial: 'pies' },
   { tipo: 'opciones', campo: 'actividad', opciones: NIVELES_DE_ACTIVIDAD },
 ]
 
@@ -58,23 +69,54 @@ function Opciones({ opciones, valor, error, elegir }: PropsDeOpciones) {
   )
 }
 
-type PropsDeCampo = { paso: PasoNumerico; valor: string; error: string | null; poner: (valor: string) => void }
-
-function CampoNumerico({ paso, valor, error, poner }: PropsDeCampo) {
+function SelectorDeUnidades({ unidades, cambiar }: { unidades: Unidades; cambiar: (unidades: Unidades) => void }) {
   return (
-    <label className="flex items-baseline gap-3 border-b-2 border-crema/40 pb-1 focus-within:border-grasa">
-      <span className="sr-only">{PREGUNTAS[paso.campo]}</span>
+    <ToggleGroup
+      type="single"
+      spacing={1}
+      aria-label="Unidades"
+      value={unidades}
+      onValueChange={(valor) => valor && cambiar(valor as Unidades)}
+      className="mb-6 rounded-full bg-crema/10 p-1"
+    >
+      {UNIDADES.map(({ valor, nombre }) => (
+        <ToggleGroupItem
+          key={valor}
+          value={valor}
+          className="rounded-full px-4 text-crema hover:bg-crema/10 hover:text-crema data-[state=on]:bg-grasa data-[state=on]:text-bosque"
+        >
+          {nombre}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  )
+}
+
+type PropsDeCampo = {
+  pregunta: string
+  unidad: string
+  inputMode: PasoNumerico['inputMode']
+  valor: string
+  error: string | null
+  poner: (valor: string) => void
+  compacto?: boolean
+}
+
+function CampoNumerico({ pregunta, unidad, inputMode, valor, error, poner, compacto = false }: PropsDeCampo) {
+  return (
+    <label className="flex min-w-0 flex-1 items-baseline gap-3 border-b-2 border-crema/40 pb-1 focus-within:border-grasa">
+      <span className="sr-only">{pregunta}</span>
       <input
         type="text"
-        inputMode={paso.inputMode}
+        inputMode={inputMode}
         autoComplete="off"
         value={valor}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? ID_DEL_ERROR : undefined}
         onChange={(evento) => poner(evento.target.value)}
-        className="w-full min-w-0 bg-transparent font-fraunces text-7xl text-crema outline-none sm:text-8xl"
+        className={`w-full min-w-0 bg-transparent font-fraunces text-crema outline-none ${compacto ? 'text-4xl min-[22rem]:text-5xl sm:text-8xl' : 'text-7xl sm:text-8xl'}`}
       />
-      <span className="text-xl text-crema/70">{paso.unidad}</span>
+      <span className="text-xl text-crema/70">{unidad}</span>
     </label>
   )
 }
@@ -97,22 +139,47 @@ export function Asistente({ respuestas, responder, alTerminar }: Props) {
     setIndice(nuevoIndice)
   }
 
-  function cambiar(nuevoValor: string) {
+  function cambiar(cambios: Partial<Respuestas>) {
     setError(null)
-    responder({ [paso.campo]: nuevoValor })
+    responder(cambios)
   }
 
   function seguir(evento: FormEvent) {
     evento.preventDefault()
-    const errorDelPaso = errorDe(paso.campo, valor)
+    const errorDelPaso = errorDe(paso.campo, respuestas)
     if (errorDelPaso !== null) setError(errorDelPaso)
     else if (esLaUltima) alTerminar()
     else irA(indice + 1)
   }
 
   function elegir(elegido: string) {
-    cambiar(elegido)
+    cambiar({ [paso.campo]: elegido })
     if (!esLaUltima) irA(indice + 1)
+  }
+
+  function camposDe({ campo, unidad, unidadImperial, inputMode }: PasoNumerico) {
+    const enImperial = respuestas.unidades === 'imperial'
+    const comun = {
+      error,
+      inputMode,
+      pregunta: PREGUNTAS[campo],
+      unidad: enImperial && unidadImperial ? unidadImperial : unidad,
+    }
+    if (enImperial && campo === 'talla') {
+      return (
+        <div className="flex gap-5">
+          <CampoNumerico {...comun} compacto valor={respuestas.pies} poner={(pies) => cambiar({ pies })} />
+          <CampoNumerico {...comun} compacto unidad="pulgadas" valor={respuestas.pulgadas} poner={(pulgadas) => cambiar({ pulgadas })} />
+        </div>
+      )
+    }
+    return (
+      <CampoNumerico
+        {...comun}
+        valor={respuestas[campo]}
+        poner={(escrito) => cambiar({ [campo]: escrito })}
+      />
+    )
   }
 
   return (
@@ -144,7 +211,15 @@ export function Asistente({ respuestas, responder, alTerminar }: Props) {
           {paso.tipo === 'opciones' ? (
             <Opciones opciones={paso.opciones} valor={valor} error={error} elegir={elegir} />
           ) : (
-            <CampoNumerico key={paso.campo} paso={paso} valor={valor} error={error} poner={cambiar} />
+            <div key={paso.campo}>
+              {paso.unidadImperial && (
+                <SelectorDeUnidades
+                  unidades={respuestas.unidades}
+                  cambiar={(unidades) => cambiar(cambiarUnidades(respuestas, unidades))}
+                />
+              )}
+              {camposDe(paso)}
+            </div>
           )}
           <p id={ID_DEL_ERROR} role="alert" className="mt-3 min-h-5 text-sm font-medium text-error-sobre-verde">
             {error}

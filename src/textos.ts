@@ -1,5 +1,5 @@
 import type { Macro, ReglaDeProteccion } from '@/calculo'
-import type { NivelDeActividad, Objetivo, Sexo } from '@/datos'
+import type { NivelDeActividad, Objetivo, Sexo, Unidades } from '@/datos'
 import type { TipoDeComida } from '@/plan'
 
 export const MARCA = 'Macros'
@@ -24,6 +24,11 @@ export const NIVELES_DE_ACTIVIDAD: Opcion<NivelDeActividad>[] = [
   { valor: 'muy-activa', nombre: 'Muy activa', descripcion: 'Trabajo duro o entrenamiento intenso casi a diario' },
 ]
 
+export const UNIDADES: Opcion<Unidades>[] = [
+  { valor: 'metrico', nombre: 'Métricas' },
+  { valor: 'imperial', nombre: 'Imperiales' },
+]
+
 export const PREGUNTAS = {
   objetivo: '¿Qué quieres hacer con tu peso?',
   sexo: '¿Cuál es tu sexo?',
@@ -37,11 +42,12 @@ export const NOTA_SEXO = 'Se usa solo porque la fórmula lo requiere'
 export const NOTA_OBJETIVO = 'Orientativa y para personas adultas. No apta para embarazo ni lactancia.'
 
 export const ERROR_SIN_OPCION = 'Elige una opción para seguir'
-export const ERROR_DE_MENORES = 'Esta calculadora es para personas adultas, a partir de 18 años'
+const ERROR_DE_MENORES ='Esta calculadora es para personas adultas, a partir de 18 años'
 export const ERRORES_DE_NUMERO = {
   edad: {
     rango: 'Introduce una edad entre 18 y 100 años',
     formato: 'Introduce una edad entre 18 y 100 años, sin decimales',
+    bajoElMinimo: ERROR_DE_MENORES,
   },
   peso: {
     rango: 'Introduce un peso entre 35 y 250 kg',
@@ -50,6 +56,15 @@ export const ERRORES_DE_NUMERO = {
   talla: {
     rango: 'Introduce una talla entre 130 y 220 cm',
     formato: 'Introduce una talla entre 130 y 220 cm, sin decimales',
+  },
+  pesoEnLibras: {
+    rango: 'Introduce un peso entre 78 y 551 lb',
+    formato: 'Introduce un peso entre 78 y 551 lb, con un decimal como máximo',
+  },
+  tallaEnPies: {
+    rango: `Introduce una talla entre 4'4" y 7'2"`,
+    formato: `Introduce una talla entre 4'4" y 7'2", sin decimales`,
+    pulgadas: `Introduce una talla entre 4'4" y 7'2", con pulgadas de 0 a 11`,
   },
 }
 

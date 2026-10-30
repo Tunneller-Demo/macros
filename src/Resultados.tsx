@@ -35,13 +35,15 @@ function nombreDe(opciones: Opcion[], valor: string) {
   return opciones.find((opcion) => opcion.valor === valor)?.nombre
 }
 
-function Resumen({ datos, alEditar }: { datos: Datos; alEditar: () => void }) {
+type Medidas = { peso: string; talla: string }
+
+function Resumen({ datos, medidas, alEditar }: { datos: Datos; medidas: Medidas; alEditar: () => void }) {
   const partes = [
     nombreDe(OBJETIVOS, datos.objetivo),
     nombreDe(SEXOS, datos.sexo),
     `${datos.edad} años`,
-    `${datos.peso.toLocaleString('es')} kg`,
-    `${datos.talla} cm`,
+    medidas.peso,
+    medidas.talla,
     nombreDe(NIVELES_DE_ACTIVIDAD, datos.actividad),
   ]
 
@@ -196,9 +198,9 @@ function PlanDeComidas({ calorias, reparto }: { calorias: number; reparto: Repar
   )
 }
 
-type Props = { datos: Datos; resultado: Resultado; alEditar: () => void }
+type Props = { datos: Datos; medidas: Medidas; resultado: Resultado; alEditar: () => void }
 
-export function Resultados({ datos, resultado, alEditar }: Props) {
+export function Resultados({ datos, medidas, resultado, alEditar }: Props) {
   const caloriasObjetivo = Math.round(resultado.caloriasObjetivo)
   const reparto = repartoEnEnteros(resultado)
 
@@ -208,7 +210,7 @@ export function Resultados({ datos, resultado, alEditar }: Props) {
         <div className="mx-auto max-w-5xl">
           <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <span className="font-fraunces text-lg text-crema">{MARCA}</span>
-            <Resumen datos={datos} alEditar={alEditar} />
+            <Resumen datos={datos} medidas={medidas} alEditar={alEditar} />
           </div>
           <h1 className="text-lg font-normal text-crema/75">Tus calorías objetivo</h1>
           <p className="font-fraunces text-8xl leading-none text-crema sm:text-[11rem]">
