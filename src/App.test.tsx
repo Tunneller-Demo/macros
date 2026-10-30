@@ -26,10 +26,28 @@ function campo() {
   return screen.getByRole('textbox')
 }
 
+function tarjetaDeMacros() {
+  return within(screen.getByRole('region', { name: 'Tus macros del día' }))
+}
+
 function macro(nombre: string) {
-  const fila = screen.getAllByRole('listitem').find((item) => within(item).queryByText(nombre))
+  const fila = tarjetaDeMacros()
+    .getAllByRole('listitem')
+    .find((item) => within(item).queryByText(nombre))
   if (!fila) throw new Error(`No se ve el macro ${nombre}`)
   return within(fila)
+}
+
+function comidas() {
+  return within(screen.getByRole('region', { name: 'Tu plan de comidas' })).getAllByRole('listitem')
+}
+
+function caloriasDe(comida: HTMLElement) {
+  return Number(/(\d+) kcal/.exec(comida.textContent ?? '')?.[1])
+}
+
+function cifraDe(comida: HTMLElement, nombre: string) {
+  return Number(new RegExp(`${nombre}(\\d+) g`).exec(comida.textContent ?? '')?.[1])
 }
 
 async function hastaLaEdad(user: Usuario) {
@@ -207,7 +225,9 @@ describe('Macros del día', () => {
     await recorrerAsistente({ ...mujerDe35, objetivo: 'Bajar' })
 
     expect(screen.getByRole('heading', { name: 'Tus macros del día' })).toBeVisible()
-    const filas = screen.getAllByRole('listitem').map((item) => item.textContent)
+    const filas = tarjetaDeMacros()
+      .getAllByRole('listitem')
+      .map((item) => item.textContent)
     expect(filas).toEqual([
       expect.stringContaining('Proteína'),
       expect.stringContaining('Grasa'),
@@ -267,17 +287,114 @@ describe('Macros del día', () => {
   it('el reparto no se puede modificar', async () => {
     await recorrerAsistente({ ...mujerDe35, objetivo: 'Bajar' })
 
-    for (const control of ['textbox', 'spinbutton', 'slider', 'radio', 'checkbox', 'combobox']) {
-      expect(screen.queryByRole(control)).not.toBeInTheDocument()
+    for (const control of ['textbox', 'spinbutton', 'slider', 'radio', 'checkbox', 'combobox', 'button']) {
+      expect(tarjetaDeMacros().queryByRole(control)).not.toBeInTheDocument()
     }
-    expect(within(screen.getByRole('list')).queryByRole('button')).not.toBeInTheDocument()
   })
 
   it('oculta el plato a los lectores de pantalla, que leen la lista', async () => {
     await recorrerAsistente({ ...mujerDe35, objetivo: 'Bajar' })
 
     expect(document.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
-    expect(screen.getByRole('list')).toBeVisible()
+    expect(tarjetaDeMacros().getByRole('list')).toBeVisible()
+  })
+})
+
+describe('Plan de comidas', () => {
+  const bajar: SeisDatos = { ...mujerDe35, objetivo: 'Bajar' }
+
+  it('ofrece 3, 4 o 5 comidas, con 4 por defecto', async () => {
+    await recorrerAsistente(bajar)
+
+    expect(screen.getAllByRole('radio').map((selector) => selector.textContent)).toEqual([
+      '3 comidas',
+      '4 comidas',
+      '5 comidas',
+    ])
+    expect(opcion('4 comidas')).toBeChecked()
+    expect(comidas()).toHaveLength(4)
+  })
+
+  it('muestra en cada comida su nombre, sus calorías y sus gramos, y nada más', async () => {
+    await recorrerAsistente(bajar)
+
+    expect(comidas().map((comida) => comida.textContent)).toEqual([
+      'Desayuno346 kcalProteína29 gGrasa12 gCarbohidratos31 g',
+      'Almuerzo484 kcalProteína41 gGrasa16 gCarbohidratos44 g',
+      'Merienda207 kcalProteína18 gGrasa7 gCarbohidratos19 g',
+      'Cena346 kcalProteína29 gGrasa11 gCarbohidratos31 g',
+    ])
+  })
+
+  it.each([
+    ['3 comidas', ['Desayuno', 'Almuerzo', 'Cena'], [415, 553, 415], [35, 47, 35]],
+    ['5 comidas', ['Desayuno', 'Media mañana', 'Almuerzo', 'Merienda', 'Cena'], [277, 138, 484, 138, 346], [23, 12, 41, 12, 29]],
+  ] as [string, string[], number[], number[]][])('con %s usa sus nombres y sus porcentajes', async (numero, nombres, calorias, proteina) => {
+    const user = await recorrerAsistente(bajar)
+
+    await user.click(opcion(numero))
+
+    expect(comidas().map((comida) => within(comida).getByRole('heading').textContent)).toEqual(nombres)
+    expect(comidas().map(caloriasDe)).toEqual(calorias)
+    expect(comidas().map((comida) => cifraDe(comida, 'Proteína'))).toEqual(proteina)
+  })
+
+  it('la diferencia del redondeo va a las cifras con mayor parte decimal', async () => {
+    const user = await recorrerAsistente(bajar)
+
+    await user.click(opcion('5 comidas'))
+
+    // 9,2 · 4,6 · 16,1 · 4,6 · 11,5: redondeados por separado sumarían 47, no 46.
+    expect(comidas().map((comida) => cifraDe(comida, 'Grasa'))).toEqual([9, 5, 16, 5, 11])
+  })
+
+  const personas: [SeisDatos][] = [
+    [bajar],
+    [{ ...mujerDe35, objetivo: 'Mantener' }],
+    [{ ...mujerDe35, objetivo: 'Subir' }],
+    // Regla de protección.
+    [{ objetivo: 'Bajar', sexo: 'Mujer', edad: '40', peso: '50', talla: '155', actividad: 'Sedentaria' }],
+    // Tope de proteína.
+    [{ objetivo: 'Bajar', sexo: 'Hombre', edad: '40', peso: '150', talla: '180', actividad: 'Sedentaria' }],
+  ]
+
+  it.each(personas)('las comidas suman los totales del día con 3, 4 y 5 comidas: %o', async (datos) => {
+    const user = await recorrerAsistente(datos)
+    const totalDeCalorias = within(screen.getByRole('banner')).getByText(/^\d+$/).textContent
+
+    for (const numero of ['3 comidas', '4 comidas', '5 comidas']) {
+      await user.click(opcion(numero))
+
+      const calorias = comidas().map(caloriasDe)
+      expect(calorias.reduce((suma, cifra) => suma + cifra)).toBe(Number.parseInt(totalDeCalorias))
+      for (const nombre of ['Proteína', 'Grasa', 'Carbohidratos']) {
+        const total = macro(nombre).getByText(/^\d+ g$/).textContent
+        const gramos = comidas().map((comida) => cifraDe(comida, nombre))
+        expect(gramos.reduce((suma, cifra) => suma + cifra)).toBe(Number.parseInt(total))
+      }
+    }
+  })
+
+  it('cambiar el número de comidas actualiza el plan y lo anuncia, pero no al llegar', async () => {
+    const user = await recorrerAsistente(bajar)
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+
+    await user.click(opcion('5 comidas'))
+    expect(comidas()).toHaveLength(5)
+    expect(screen.getByRole('status')).toHaveTextContent('Plan de 5 comidas')
+
+    await user.click(opcion('4 comidas'))
+    expect(comidas()).toHaveLength(4)
+    expect(screen.getByRole('status')).toHaveTextContent('Plan de 4 comidas')
+  })
+
+  it('volver a pulsar la opción elegida no vacía el plan', async () => {
+    const user = await recorrerAsistente(bajar)
+
+    await user.click(opcion('4 comidas'))
+
+    expect(opcion('4 comidas')).toBeChecked()
+    expect(comidas()).toHaveLength(4)
   })
 })
 

@@ -87,7 +87,7 @@ export function calcular(datos: Datos): Resultado {
 }
 
 // Redondea a enteros sin que cambie la suma: la diferencia va a las cifras con mayor parte decimal.
-function enterosConLaMismaSuma(exactos: number[]) {
+export function enterosConLaMismaSuma(exactos: number[]) {
   const sumar = (cifras: number[]) => cifras.reduce((suma, cifra) => suma + cifra, 0)
   const enteros = exactos.map(Math.floor)
   const parteDecimal = (i: number) => exactos[i] - enteros[i]

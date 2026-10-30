@@ -1,10 +1,17 @@
+import { useState, type CSSProperties } from 'react'
 import { repartoEnEnteros, type Macro, type RepartoDeMacros, type Resultado } from '@/calculo'
-import { MACROS, MARCA, MENSAJES_DE_REGLA } from '@/textos'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { COMIDAS_POR_DEFECTO, NUMEROS_DE_COMIDAS, planDeComidas, type Comida, type NumeroDeComidas } from '@/plan'
+import { MACROS, MARCA, MENSAJES_DE_REGLA, NOMBRES_DE_COMIDA } from '@/textos'
 
-const COLORES_DEL_MACRO: Record<Macro, { sector: string; punto: string }> = {
-  proteina: { sector: 'stroke-proteina', punto: 'bg-proteina' },
-  grasa: { sector: 'stroke-grasa', punto: 'bg-grasa' },
-  carbohidratos: { sector: 'stroke-carbohidratos', punto: 'bg-carbohidratos' },
+const COLORES_DEL_MACRO: Record<Macro, { sector: string; punto: string; sobreVerde: string }> = {
+  proteina: { sector: 'stroke-proteina', punto: 'bg-proteina', sobreVerde: 'text-proteina-sobre-verde' },
+  grasa: { sector: 'stroke-grasa', punto: 'bg-grasa', sobreVerde: 'text-grasa' },
+  carbohidratos: {
+    sector: 'stroke-carbohidratos',
+    punto: 'bg-carbohidratos',
+    sobreVerde: 'text-carbohidratos-sobre-verde',
+  },
 }
 
 // Hueco entre sectores, sobre una circunferencia de 100.
@@ -39,8 +46,13 @@ function Plato({ reparto }: { reparto: RepartoDeMacros }) {
 
 function TarjetaDeMacros({ reparto }: { reparto: RepartoDeMacros }) {
   return (
-    <section className="rounded-3xl bg-crema-clara p-5 shadow-[0_10px_40px] shadow-bosque/12 sm:p-8">
-      <h2 className="mb-6 font-fraunces text-3xl font-normal">Tus macros del día</h2>
+    <section
+      aria-labelledby="titulo-macros"
+      className="rounded-3xl bg-crema-clara p-5 shadow-[0_10px_40px] shadow-bosque/12 sm:p-8"
+    >
+      <h2 id="titulo-macros" className="mb-6 font-fraunces text-3xl font-normal">
+        Tus macros del día
+      </h2>
       <div className="grid items-center gap-8 sm:grid-cols-[260px_1fr]">
         <Plato reparto={reparto} />
         {/* Sin viñetas, VoiceOver deja de anunciarla como lista si no lleva el rol. */}
@@ -63,7 +75,82 @@ function TarjetaDeMacros({ reparto }: { reparto: RepartoDeMacros }) {
   )
 }
 
+function TarjetaDeComida({ comida }: { comida: Comida }) {
+  return (
+    // La tarjeta adapta la letra a su propio ancho: en las del 10 %, la línea de Carbohidratos cabe solo a 12 px.
+    <li className="@container min-w-0 rounded-2xl bg-bosque text-crema">
+      <div className="p-4 text-sm xl:px-1.5 xl:text-xs xl:@min-[9rem]:px-4 xl:@min-[9rem]:text-sm">
+        <div className="flex items-baseline justify-between gap-2 xl:block">
+          <h3 className="font-normal whitespace-nowrap text-crema/75">{NOMBRES_DE_COMIDA[comida.tipo]}</h3>
+          <p className="font-fraunces text-3xl whitespace-nowrap xl:mt-6">
+            {comida.calorias} <span className="font-instrument text-sm">kcal</span>
+          </p>
+        </div>
+        <dl className="mt-3 flex flex-wrap justify-between gap-x-4 gap-y-1 tabular-nums xl:block xl:space-y-1">
+          {MACROS.map(({ valor, nombre }) => (
+            <div key={valor} className="flex justify-between gap-1 whitespace-nowrap">
+              <dt className={COLORES_DEL_MACRO[valor].sobreVerde}>{nombre}</dt>
+              <dd>{comida.gramos[valor]} g</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </li>
+  )
+}
+
+function PlanDeComidas({ calorias, reparto }: { calorias: number; reparto: RepartoDeMacros }) {
+  const [elegidas, setElegidas] = useState<NumeroDeComidas | null>(null)
+  const numeroDeComidas = elegidas ?? COMIDAS_POR_DEFECTO
+  const comidas = planDeComidas(calorias, reparto, numeroDeComidas)
+  const columnas = comidas.map(({ porcentaje }) => `minmax(0, ${porcentaje}fr)`).join(' ')
+
+  return (
+    // La franja puede salirse de la columna: dentro de ella, «Carbohidratos» no cabe en una tarjeta del 10 %.
+    <section aria-labelledby="titulo-plan" className="mx-auto mt-12 max-w-7xl">
+      <div className="mx-auto mb-5 flex max-w-5xl flex-wrap items-center justify-between gap-3">
+        <h2 id="titulo-plan" className="font-fraunces text-3xl font-normal">
+          Tu plan de comidas
+        </h2>
+        <ToggleGroup
+          type="single"
+          spacing={1}
+          aria-label="Número de comidas"
+          value={String(numeroDeComidas)}
+          onValueChange={(valor) => valor && setElegidas(Number(valor) as NumeroDeComidas)}
+          className="rounded-full bg-bosque/8 p-1"
+        >
+          {NUMEROS_DE_COMIDAS.map((numero) => (
+            <ToggleGroupItem
+              key={numero}
+              value={String(numero)}
+              className="rounded-full px-2.5 text-bosque sm:px-4 hover:bg-bosque/10 hover:text-bosque data-[state=on]:bg-bosque data-[state=on]:text-crema"
+            >
+              {numero} comidas
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </div>
+      <p role="status" className="sr-only">
+        {elegidas && `Plan de ${elegidas} comidas`}
+      </p>
+      <ol
+        role="list"
+        style={{ '--columnas': columnas } as CSSProperties}
+        className="grid gap-2 xl:grid-cols-(--columnas) xl:gap-1"
+      >
+        {comidas.map((comida) => (
+          <TarjetaDeComida key={comida.tipo} comida={comida} />
+        ))}
+      </ol>
+    </section>
+  )
+}
+
 export function Resultados({ resultado }: { resultado: Resultado }) {
+  const caloriasObjetivo = Math.round(resultado.caloriasObjetivo)
+  const reparto = repartoEnEnteros(resultado)
+
   return (
     <div className="min-h-screen bg-crema pb-12 font-instrument text-bosque">
       <header className="bg-bosque px-5 pb-20 pt-6 sm:px-8">
@@ -71,7 +158,7 @@ export function Resultados({ resultado }: { resultado: Resultado }) {
           <div className="mb-10 font-fraunces text-lg text-crema">{MARCA}</div>
           <h1 className="text-lg font-normal text-crema/75">Tus calorías objetivo</h1>
           <p className="font-fraunces text-8xl leading-none text-crema sm:text-[11rem]">
-            <span>{Math.round(resultado.caloriasObjetivo)}</span>
+            <span>{caloriasObjetivo}</span>
             <span className="ml-2 text-2xl sm:text-4xl">kcal al día</span>
           </p>
           {resultado.regla && (
@@ -88,8 +175,9 @@ export function Resultados({ resultado }: { resultado: Resultado }) {
       </header>
       <main className="-mt-10 px-5 sm:px-8">
         <div className="mx-auto max-w-5xl">
-          <TarjetaDeMacros reparto={repartoEnEnteros(resultado)} />
+          <TarjetaDeMacros reparto={reparto} />
         </div>
+        <PlanDeComidas calorias={caloriasObjetivo} reparto={reparto} />
       </main>
     </div>
   )

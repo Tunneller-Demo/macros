@@ -38,4 +38,5 @@ export async function recorrerAsistente(datos: SeisDatos) {
   await responderHastaLaActividad(user, datos)
   await user.click(opcion(datos.actividad))
   await user.click(screen.getByRole('button', { name: 'Ver mi plan' }))
+  return user
 }

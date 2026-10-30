@@ -1,5 +1,6 @@
 import type { Macro, ReglaDeProteccion } from '@/calculo'
 import type { NivelDeActividad, Objetivo, Sexo } from '@/datos'
+import type { TipoDeComida } from '@/plan'
 
 export const MARCA = 'Macros'
 
@@ -39,6 +40,14 @@ export const MACROS: Opcion<Macro>[] = [
   { valor: 'grasa', nombre: 'Grasa' },
   { valor: 'carbohidratos', nombre: 'Carbohidratos' },
 ]
+
+export const NOMBRES_DE_COMIDA: Record<TipoDeComida, string> = {
+  desayuno: 'Desayuno',
+  'media-manana': 'Media mañana',
+  almuerzo: 'Almuerzo',
+  merienda: 'Merienda',
+  cena: 'Cena',
+}
 
 export const MENSAJES_DE_REGLA: Record<ReglaDeProteccion, string> = {
   'bajo-peso':

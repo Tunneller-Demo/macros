@@ -10,6 +10,8 @@
   --color-proteina: #d9512c;
   --color-grasa: #e4a72b;
   --color-carbohidratos: #6f9a5c;
+  --color-proteina-sobre-verde: #f08a68;
+  --color-carbohidratos-sobre-verde: #a5cb92;
 
   /* Tokens que usan los componentes de shadcn/ui */
   --color-primary: var(--color-grasa);
