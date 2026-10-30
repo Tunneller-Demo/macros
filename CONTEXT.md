@@ -23,3 +23,23 @@ _Avoid_: meta, fase, déficit, superávit
 **Calorías objetivo**:
 Las calorías diarias que se proponen a la persona: su gasto diario ajustado según su objetivo.
 _Avoid_: calorías recomendadas, ingesta, presupuesto calórico
+
+**Macros**:
+La proteína, la grasa y los carbohidratos de la dieta, medidos en gramos.
+_Avoid_: macronutrientes, nutrientes
+
+**Reparto de macros**:
+La parte de las calorías objetivo que corresponde a cada macro en un día.
+_Avoid_: distribución de macros, ratio, split
+
+**Comida**:
+Cada una de las tomas del día que forman el plan de comidas: desayuno, media mañana, almuerzo, merienda o cena.
+_Avoid_: toma, ingesta
+
+**Almuerzo**:
+La comida del mediodía.
+_Avoid_: comida, para referirse solo a la del mediodía
+
+**Plan de comidas**:
+La propuesta de cómo repartir las calorías objetivo y los macros entre las comidas de un día. No incluye recetas, alimentos ni horarios.
+_Avoid_: dieta, menú, pauta
