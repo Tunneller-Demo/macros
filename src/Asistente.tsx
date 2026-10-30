@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { esNumero, type Respuestas } from '@/datos'
+import { errorDe, type Respuestas } from '@/datos'
 import { MARCA, NIVELES_DE_ACTIVIDAD, NOTA_SEXO, OBJETIVOS, PREGUNTAS, SEXOS, type Opcion } from '@/textos'
 
 type PasoDeOpciones = {
@@ -29,9 +29,20 @@ const PASOS: Paso[] = [
   { tipo: 'opciones', campo: 'actividad', opciones: NIVELES_DE_ACTIVIDAD },
 ]
 
-function Opciones({ opciones, valor, elegir }: { opciones: Opcion[]; valor: string; elegir: (valor: string) => void }) {
+const ID_DEL_ERROR = 'error-de-la-pregunta'
+
+type PropsDeOpciones = { opciones: Opcion[]; valor: string; error: string | null; elegir: (valor: string) => void }
+
+function Opciones({ opciones, valor, error, elegir }: PropsDeOpciones) {
   return (
-    <ToggleGroup type="single" spacing={3} value={valor} className="grid w-full">
+    <ToggleGroup
+      type="single"
+      spacing={3}
+      value={valor}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={error ? ID_DEL_ERROR : undefined}
+      className="grid w-full"
+    >
       {opciones.map((opcion) => (
         <ToggleGroupItem
           key={opcion.valor}
@@ -47,7 +58,9 @@ function Opciones({ opciones, valor, elegir }: { opciones: Opcion[]; valor: stri
   )
 }
 
-function CampoNumerico({ paso, valor, poner }: { paso: PasoNumerico; valor: string; poner: (valor: string) => void }) {
+type PropsDeCampo = { paso: PasoNumerico; valor: string; error: string | null; poner: (valor: string) => void }
+
+function CampoNumerico({ paso, valor, error, poner }: PropsDeCampo) {
   return (
     <label className="flex items-baseline gap-3 border-b-2 border-crema/40 pb-1 focus-within:border-grasa">
       <span className="sr-only">{PREGUNTAS[paso.campo]}</span>
@@ -56,6 +69,8 @@ function CampoNumerico({ paso, valor, poner }: { paso: PasoNumerico; valor: stri
         inputMode={paso.inputMode}
         autoComplete="off"
         value={valor}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? ID_DEL_ERROR : undefined}
         onChange={(evento) => poner(evento.target.value)}
         className="w-full min-w-0 bg-transparent font-fraunces text-7xl text-crema outline-none sm:text-8xl"
       />
@@ -72,21 +87,32 @@ type Props = {
 
 export function Asistente({ respuestas, responder, alTerminar }: Props) {
   const [indice, setIndice] = useState(0)
+  const [error, setError] = useState<string | null>(null)
   const paso = PASOS[indice]
   const esLaUltima = indice === PASOS.length - 1
   const valor = respuestas[paso.campo]
-  const respondida = paso.tipo === 'opciones' ? valor !== '' : esNumero(valor)
+
+  function irA(nuevoIndice: number) {
+    setError(null)
+    setIndice(nuevoIndice)
+  }
+
+  function cambiar(nuevoValor: string) {
+    setError(null)
+    responder({ [paso.campo]: nuevoValor })
+  }
 
   function seguir(evento: FormEvent) {
     evento.preventDefault()
-    if (!respondida) return
-    if (esLaUltima) alTerminar()
-    else setIndice(indice + 1)
+    const errorDelPaso = errorDe(paso.campo, valor)
+    if (errorDelPaso !== null) setError(errorDelPaso)
+    else if (esLaUltima) alTerminar()
+    else irA(indice + 1)
   }
 
   function elegir(elegido: string) {
-    responder({ [paso.campo]: elegido })
-    if (!esLaUltima) setIndice(indice + 1)
+    cambiar(elegido)
+    if (!esLaUltima) irA(indice + 1)
   }
 
   return (
@@ -116,20 +142,18 @@ export function Asistente({ respuestas, responder, alTerminar }: Props) {
           </h1>
           <p className="mb-8 mt-3 min-h-5 text-sm text-crema/70">{paso.tipo === 'opciones' && paso.nota}</p>
           {paso.tipo === 'opciones' ? (
-            <Opciones opciones={paso.opciones} valor={valor} elegir={elegir} />
+            <Opciones opciones={paso.opciones} valor={valor} error={error} elegir={elegir} />
           ) : (
-            <CampoNumerico
-              key={paso.campo}
-              paso={paso}
-              valor={valor}
-              poner={(escrito) => responder({ [paso.campo]: escrito })}
-            />
+            <CampoNumerico key={paso.campo} paso={paso} valor={valor} error={error} poner={cambiar} />
           )}
-          <div className="mt-8 flex items-center justify-between">
+          <p id={ID_DEL_ERROR} role="alert" className="mt-3 min-h-5 text-sm font-medium text-error-sobre-verde">
+            {error}
+          </p>
+          <div className="mt-5 flex items-center justify-between">
             <Button
               type="button"
               variant="ghost"
-              onClick={() => setIndice(indice - 1)}
+              onClick={() => irA(indice - 1)}
               className={`text-base font-normal text-crema/70 hover:bg-transparent hover:text-crema ${indice === 0 ? 'invisible' : ''}`}
             >
               Atrás

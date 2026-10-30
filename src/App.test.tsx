@@ -169,6 +169,170 @@ describe('Asistente', () => {
   })
 })
 
+describe('Validación de las preguntas', () => {
+  type Dato = 'edad' | 'peso' | 'talla'
+
+  const RANGO_EDAD = 'Introduce una edad entre 18 y 100 años'
+  const RANGO_PESO = 'Introduce un peso entre 35 y 250 kg'
+  const RANGO_TALLA = 'Introduce una talla entre 130 y 220 cm'
+  const MENORES = 'Esta calculadora es para personas adultas, a partir de 18 años'
+  const SIN_OPCION = 'Elige una opción para seguir'
+
+  async function hasta(user: Usuario, dato: Dato) {
+    await hastaLaEdad(user)
+    if (dato === 'edad') return
+    await user.type(campo(), '35')
+    await user.click(seguir())
+    if (dato === 'peso') return
+    await user.type(campo(), '65')
+    await user.click(seguir())
+  }
+
+  it('sin una opción elegida, no avanza y pide elegir, asociado a las opciones', async () => {
+    const user = abrirApp()
+
+    await user.click(seguir())
+
+    expect(pregunta('¿Qué quieres hacer con tu peso?')).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent(SIN_OPCION)
+    expect(screen.getByRole('radiogroup')).toHaveAccessibleDescription(SIN_OPCION)
+  })
+
+  it('en la última pregunta, sin opción elegida, «Ver mi plan» tampoco avanza', async () => {
+    const user = abrirApp()
+    await hastaLaActividad(user)
+
+    await user.click(screen.getByRole('button', { name: 'Ver mi plan' }))
+
+    expect(pregunta('¿Cómo es tu día a día?')).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent(SIN_OPCION)
+  })
+
+  it.each([
+    ['edad', '', RANGO_EDAD],
+    ['edad', 'abc', RANGO_EDAD],
+    ['edad', '-5', RANGO_EDAD],
+    ['edad', '17', MENORES],
+    ['edad', '17,5', MENORES],
+    ['edad', '0', MENORES],
+    ['edad', '101', RANGO_EDAD],
+    ['edad', '25,5', `${RANGO_EDAD}, sin decimales`],
+    ['peso', '', RANGO_PESO],
+    ['peso', '1e2', RANGO_PESO],
+    ['peso', '65,', RANGO_PESO],
+    ['peso', '34,9', RANGO_PESO],
+    ['peso', '34.9', RANGO_PESO],
+    ['peso', '250,1', RANGO_PESO],
+    ['peso', '250.1', RANGO_PESO],
+    ['peso', '65,55', `${RANGO_PESO}, con un decimal como máximo`],
+    ['talla', '', RANGO_TALLA],
+    ['talla', '129', RANGO_TALLA],
+    ['talla', '221', RANGO_TALLA],
+    ['talla', '170,5', `${RANGO_TALLA}, sin decimales`],
+  ] as [Dato, string, string][])('%s «%s» no avanza y explica qué corregir, asociado al campo', async (dato, escrito, mensaje) => {
+    const user = abrirApp()
+    await hasta(user, dato)
+    const enunciado = screen.getByRole('heading').textContent
+
+    if (escrito) await user.type(campo(), escrito)
+    await user.click(seguir())
+
+    expect(pregunta(enunciado)).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent(mensaje)
+    expect(campo()).toHaveAccessibleDescription(mensaje)
+    expect(campo()).toBeInvalid()
+    expect(campo()).toHaveValue(escrito)
+  })
+
+  it.each([
+    ['edad', '18'],
+    ['edad', '100'],
+    ['peso', '35'],
+    ['peso', '250'],
+    ['peso', '35,0'],
+    ['peso', '250.0'],
+    ['peso', '65,5'],
+    ['peso', '65.5'],
+    ['talla', '130'],
+    ['talla', '220'],
+  ] as [Dato, string][])('%s «%s» vale y avanza', async (dato, escrito) => {
+    const user = abrirApp()
+    await hasta(user, dato)
+    const enunciado = screen.getByRole('heading').textContent
+
+    await user.type(campo(), escrito)
+    await user.click(seguir())
+
+    expect(screen.queryByRole('heading', { name: enunciado })).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toBeEmptyDOMElement()
+  })
+
+  it.each(['65,5', '65.5'])('el peso %s da las mismas cifras con coma y con punto', async (peso) => {
+    await recorrerAsistente({ ...mujerDe35, objetivo: 'Mantener', peso })
+
+    expect(screen.getByText('1890')).toBeVisible()
+  })
+
+  it('el mensaje desaparece al corregir el campo', async () => {
+    const user = abrirApp()
+    await hastaLaEdad(user)
+    await user.click(seguir())
+
+    await user.type(campo(), '3')
+
+    expect(screen.getByRole('alert')).toBeEmptyDOMElement()
+    expect(campo()).toBeValid()
+    expect(campo()).not.toHaveAccessibleDescription()
+  })
+
+  it('el mensaje desaparece al elegir una opción en la última pregunta', async () => {
+    const user = abrirApp()
+    await hastaLaActividad(user)
+    await user.click(screen.getByRole('button', { name: 'Ver mi plan' }))
+
+    await user.click(opcion('Moderada'))
+
+    expect(screen.getByRole('alert')).toBeEmptyDOMElement()
+  })
+
+  it('Atrás quita el mensaje y conserva lo escrito', async () => {
+    const user = abrirApp()
+    await hastaLaEdad(user)
+    await user.type(campo(), '17')
+    await user.click(seguir())
+
+    await user.click(atras())
+    expect(screen.getByRole('alert')).toBeEmptyDOMElement()
+
+    await user.click(opcion('Mujer'))
+    expect(campo()).toHaveValue('17')
+    expect(screen.getByRole('alert')).toBeEmptyDOMElement()
+  })
+
+  it('en un campo numérico, Enter equivale a Seguir', async () => {
+    const user = abrirApp()
+    await hastaLaEdad(user)
+
+    await user.type(campo(), '{Enter}')
+    expect(pregunta('¿Cuántos años tienes?')).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent(RANGO_EDAD)
+
+    await user.type(campo(), '35{Enter}')
+    expect(pregunta('¿Cuánto pesas?')).toBeVisible()
+  })
+
+  it.each([
+    ['edad', 'numeric'],
+    ['peso', 'decimal'],
+    ['talla', 'numeric'],
+  ] as [Dato, string][])('el campo %s abre el teclado numérico', async (dato, teclado) => {
+    const user = abrirApp()
+    await hasta(user, dato)
+
+    expect(campo()).toHaveAttribute('inputmode', teclado)
+  })
+})
+
 describe('Resultados', () => {
   it('muestra las calorías objetivo con el metabolismo en reposo y el gasto diario debajo', async () => {
     await recorrerAsistente({ ...mujerDe35, objetivo: 'Bajar' })

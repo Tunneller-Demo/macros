@@ -35,6 +35,23 @@ export const PREGUNTAS = {
 
 export const NOTA_SEXO = 'Se usa solo porque la fórmula lo requiere'
 
+export const ERROR_SIN_OPCION = 'Elige una opción para seguir'
+export const ERROR_DE_MENORES = 'Esta calculadora es para personas adultas, a partir de 18 años'
+export const ERRORES_DE_NUMERO = {
+  edad: {
+    rango: 'Introduce una edad entre 18 y 100 años',
+    formato: 'Introduce una edad entre 18 y 100 años, sin decimales',
+  },
+  peso: {
+    rango: 'Introduce un peso entre 35 y 250 kg',
+    formato: 'Introduce un peso entre 35 y 250 kg, con un decimal como máximo',
+  },
+  talla: {
+    rango: 'Introduce una talla entre 130 y 220 cm',
+    formato: 'Introduce una talla entre 130 y 220 cm, sin decimales',
+  },
+}
+
 export const MACROS: Opcion<Macro>[] = [
   { valor: 'proteina', nombre: 'Proteína' },
   { valor: 'grasa', nombre: 'Grasa' },
