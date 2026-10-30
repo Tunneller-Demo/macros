@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { cleanup, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { abrirApp, opcion, recorrerAsistente, responderHastaLaActividad, type SeisDatos, type Usuario } from '@/test/recorrer'
 
@@ -24,6 +24,18 @@ function atras() {
 
 function campo() {
   return screen.getByRole('textbox')
+}
+
+function verMiPlan() {
+  return screen.getByRole('button', { name: 'Ver mi plan' })
+}
+
+function editar() {
+  return screen.getByRole('button', { name: 'Editar' })
+}
+
+function sigueA(anterior: Element, siguiente: Element) {
+  return Boolean(anterior.compareDocumentPosition(siguiente) & Node.DOCUMENT_POSITION_FOLLOWING)
 }
 
 function tarjetaDeMacros() {
@@ -123,7 +135,7 @@ describe('Asistente', () => {
     expect(pregunta('¿Cómo es tu día a día?')).toBeVisible()
     expect(opcion('Moderada')).toBeChecked()
     expect(screen.queryByRole('button', { name: 'Seguir' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Ver mi plan' })).toBeVisible()
+    expect(verMiPlan()).toBeVisible()
   })
 
   it('Atrás vuelve a la pregunta anterior sin perder lo escrito', async () => {
@@ -203,7 +215,7 @@ describe('Validación de las preguntas', () => {
     const user = abrirApp()
     await hastaLaActividad(user)
 
-    await user.click(screen.getByRole('button', { name: 'Ver mi plan' }))
+    await user.click(verMiPlan())
 
     expect(pregunta('¿Cómo es tu día a día?')).toBeVisible()
     expect(screen.getByRole('alert')).toHaveTextContent(SIN_OPCION)
@@ -292,7 +304,7 @@ describe('Validación de las preguntas', () => {
   it('el mensaje desaparece al elegir una opción en la última pregunta', async () => {
     const user = abrirApp()
     await hastaLaActividad(user)
-    await user.click(screen.getByRole('button', { name: 'Ver mi plan' }))
+    await user.click(verMiPlan())
 
     await user.click(opcion('Moderada'))
 
@@ -629,9 +641,8 @@ describe('Reglas de protección', () => {
     await recorrerAsistente(bajoPeso)
 
     const mensaje = screen.getByText(MENSAJE_BAJO_PESO)
-    const sigue = Node.DOCUMENT_POSITION_FOLLOWING
-    expect(screen.getByText('2291').compareDocumentPosition(mensaje) & sigue).toBeTruthy()
-    expect(mensaje.compareDocumentPosition(screen.getByText(/Metabolismo en reposo/)) & sigue).toBeTruthy()
+    expect(sigueA(screen.getByText('2291'), mensaje)).toBe(true)
+    expect(sigueA(mensaje, screen.getByText(/Metabolismo en reposo/))).toBe(true)
   })
 
   it.each([
@@ -658,5 +669,242 @@ describe('Reglas de protección', () => {
     expect(screen.queryByText(/IMC/)).not.toBeInTheDocument()
     expect(document.body).not.toHaveTextContent('14,7')
     expect(document.body).not.toHaveTextContent('14.7')
+  })
+})
+
+describe('Resumen y Editar', () => {
+  const bajar: SeisDatos = { ...mujerDe35, objetivo: 'Bajar' }
+
+  function resumen() {
+    return within(screen.getByRole('banner'))
+      .getAllByRole('listitem')
+      .map((dato) => dato.textContent)
+  }
+
+  it('la cabecera muestra la marca, los seis datos en orden y Editar', async () => {
+    await recorrerAsistente(bajar)
+
+    const cabecera = within(screen.getByRole('banner'))
+    expect(cabecera.getByText('Macros')).toBeVisible()
+    expect(resumen()).toEqual(['Bajar', 'Mujer', '35 años', '65 kg', '165 cm', 'Sedentaria'])
+    expect(cabecera.getByRole('button', { name: 'Editar' })).toBeVisible()
+  })
+
+  it.each(['65,5', '65.5', ' 65,5 '])('el resumen muestra el peso «%s» con coma y sin espacios', async (peso) => {
+    await recorrerAsistente({ ...bajar, peso })
+
+    expect(resumen()).toContain('65,5 kg')
+  })
+
+  it('Editar vuelve a la primera pregunta con los datos conservados', async () => {
+    const user = await recorrerAsistente(bajar)
+
+    await user.click(editar())
+
+    expect(pregunta('¿Qué quieres hacer con tu peso?')).toBeVisible()
+    expect(screen.getByText('1 de 6')).toBeVisible()
+    expect(opcion('Bajar')).toBeChecked()
+
+    await user.click(seguir())
+    expect(opcion('Mujer')).toBeChecked()
+
+    await user.click(seguir())
+    expect(campo()).toHaveValue('35')
+
+    await user.click(seguir())
+    expect(campo()).toHaveValue('65')
+
+    await user.click(seguir())
+    expect(campo()).toHaveValue('165')
+
+    await user.click(seguir())
+    expect(opcion('Sedentaria')).toBeChecked()
+  })
+
+  it('Editar sin cambiar nada da las mismas cifras', async () => {
+    const user = await recorrerAsistente(bajar)
+
+    await user.click(editar())
+    for (let paso = 0; paso < 5; paso++) await user.click(seguir())
+    await user.click(verMiPlan())
+
+    expect(screen.getByText('1383')).toBeVisible()
+    expect(resumen()).toEqual(['Bajar', 'Mujer', '35 años', '65 kg', '165 cm', 'Sedentaria'])
+  })
+
+  it('un cambio se refleja en el resumen y en las cifras', async () => {
+    const user = await recorrerAsistente(bajar)
+
+    await user.click(editar())
+    await user.click(opcion('Mantener'))
+    for (let paso = 0; paso < 4; paso++) await user.click(seguir())
+    await user.click(verMiPlan())
+
+    expect(screen.getByText('1883')).toBeVisible()
+    expect(resumen()[0]).toBe('Mantener')
+  })
+
+  it('un cambio que activa una regla de protección muestra su mensaje', async () => {
+    const user = await recorrerAsistente(bajar)
+    expect(screen.queryByText(/Hemos limitado el recorte/)).not.toBeInTheDocument()
+
+    await user.click(editar())
+    await user.click(seguir())
+    await user.click(seguir())
+    await user.click(seguir())
+    await user.clear(campo())
+    await user.type(campo(), '51')
+    await user.click(seguir())
+    await user.click(seguir())
+    await user.click(verMiPlan())
+
+    expect(resumen()).toContain('51 kg')
+    expect(screen.getByText(/Hemos limitado el recorte/)).toBeVisible()
+  })
+
+  it('tras Editar, el plan vuelve a 4 comidas', async () => {
+    const user = await recorrerAsistente(bajar)
+    await user.click(opcion('5 comidas'))
+
+    await user.click(editar())
+    for (let paso = 0; paso < 5; paso++) await user.click(seguir())
+    await user.click(verMiPlan())
+
+    expect(opcion('4 comidas')).toBeChecked()
+    expect(comidas()).toHaveLength(4)
+  })
+})
+
+describe('Avisos', () => {
+  const NOTA_OBJETIVO = 'Orientativa y para personas adultas. No apta para embarazo ni lactancia.'
+  const MARGEN_DE_ERROR =
+    'Es una estimación: tu gasto real puede variar unas 300 kcal arriba o abajo. Si tu peso no evoluciona como esperabas, ajusta.'
+  const AVISO_ORIENTATIVO =
+    'Este resultado es orientativo y no sustituye el consejo de un profesional sanitario. La calculadora está pensada para personas adultas: no sirve para menores ni durante el embarazo o la lactancia. Si tienes alguna enfermedad o dudas sobre tu alimentación, consulta a un profesional.'
+
+  const bajoPeso: SeisDatos = { objetivo: 'Bajar', sexo: 'Mujer', edad: '25', peso: '40', talla: '165', actividad: 'Muy activa' }
+  const personas: [SeisDatos][] = [
+    [{ ...mujerDe35, objetivo: 'Bajar' }],
+    [{ ...mujerDe35, objetivo: 'Mantener' }],
+    [{ ...mujerDe35, objetivo: 'Subir' }],
+    [bajoPeso],
+  ]
+
+  function pie() {
+    return within(screen.getByRole('contentinfo'))
+  }
+
+  it('la primera pregunta avisa de para quién es la calculadora, y las demás no', async () => {
+    const user = abrirApp()
+    expect(screen.getByText(NOTA_OBJETIVO)).toBeVisible()
+
+    await user.click(opcion('Bajar'))
+    expect(screen.queryByText(NOTA_OBJETIVO)).not.toBeInTheDocument()
+  })
+
+  it('la primera pregunta mantiene el aviso con un error y al volver con Atrás', async () => {
+    const user = abrirApp()
+
+    await user.click(seguir())
+    expect(screen.getByRole('alert')).toHaveTextContent('Elige una opción para seguir')
+    expect(screen.getByText(NOTA_OBJETIVO)).toBeVisible()
+
+    await user.click(opcion('Bajar'))
+    await user.click(atras())
+    expect(screen.getByText(NOTA_OBJETIVO)).toBeVisible()
+  })
+
+  it('la primera pregunta vuelve a mostrar el aviso con Editar', async () => {
+    const user = await recorrerAsistente({ ...mujerDe35, objetivo: 'Bajar' })
+
+    await user.click(editar())
+
+    expect(screen.getByText(NOTA_OBJETIVO)).toBeVisible()
+  })
+
+  it.each(personas)('la frase del margen de error aparece siempre bajo la cifra: %o', async (datos) => {
+    await recorrerAsistente(datos)
+
+    const cabecera = within(screen.getByRole('banner'))
+    const frase = cabecera.getByText(MARGEN_DE_ERROR)
+    expect(frase).toBeVisible()
+    expect(sigueA(cabecera.getByText(/^\d+$/), frase)).toBe(true)
+  })
+
+  it('con una regla, la frase del margen de error va tras su mensaje', async () => {
+    await recorrerAsistente(bajoPeso)
+
+    expect(sigueA(screen.getByText(/^Con tu peso y tu talla/), screen.getByText(MARGEN_DE_ERROR))).toBe(true)
+  })
+
+  it.each(personas)('el aviso orientativo y «Construida con Tunneller» están siempre en resultados: %o', async (datos) => {
+    const user = await recorrerAsistente(datos)
+
+    for (const numero of ['3 comidas', '4 comidas', '5 comidas']) {
+      await user.click(opcion(numero))
+
+      expect(pie().getByText(AVISO_ORIENTATIVO)).toBeVisible()
+      expect(pie().getByText('Construida con Tunneller')).toBeVisible()
+    }
+  })
+
+  it('el aviso orientativo solo informa: no se marca, no bloquea y no se pliega', async () => {
+    await recorrerAsistente({ ...mujerDe35, objetivo: 'Bajar' })
+
+    // Un <details> tiene el rol group.
+    for (const control of ['checkbox', 'button', 'switch', 'link', 'radio', 'group']) {
+      expect(pie().queryByRole(control)).not.toBeInTheDocument()
+    }
+    expect(opcion('3 comidas')).toBeEnabled()
+  })
+
+  it('resultados sigue el orden: cabecera, cifra, macros, plan y pie', async () => {
+    await recorrerAsistente({ ...mujerDe35, objetivo: 'Bajar' })
+
+    const secuencia = [
+      editar(),
+      screen.getByRole('heading', { name: 'Tus calorías objetivo' }),
+      screen.getByText('1383'),
+      screen.getByRole('region', { name: 'Tus macros del día' }),
+      screen.getByRole('region', { name: 'Tu plan de comidas' }),
+      screen.getByRole('contentinfo'),
+    ]
+
+    secuencia.slice(1).forEach((elemento, i) => expect(sigueA(secuencia[i], elemento)).toBe(true))
+  })
+})
+
+describe('Privacidad', () => {
+  it('tras un recorrido no queda nada en el navegador ni en la URL', async () => {
+    const direccion = window.location.href
+
+    const user = await recorrerAsistente({ ...mujerDe35, objetivo: 'Bajar' })
+    await user.click(opcion('5 comidas'))
+    await user.click(editar())
+
+    expect(localStorage).toHaveLength(0)
+    expect(sessionStorage).toHaveLength(0)
+    expect(document.cookie).toBe('')
+    expect(window.location.href).toBe(direccion)
+  })
+
+  it('al recargar, el formulario queda vacío', async () => {
+    await recorrerAsistente({ ...mujerDe35, objetivo: 'Bajar' })
+    cleanup()
+
+    const user = abrirApp()
+
+    expect(pregunta('¿Qué quieres hacer con tu peso?')).toBeVisible()
+    expect(screen.getByText('1 de 6')).toBeVisible()
+    expect(opcion('Bajar')).not.toBeChecked()
+    await user.click(opcion('Bajar'))
+    expect(opcion('Mujer')).not.toBeChecked()
+    await user.click(opcion('Mujer'))
+    for (const valor of ['35', '65', '165']) {
+      expect(campo()).toHaveValue('')
+      await user.type(campo(), valor)
+      await user.click(seguir())
+    }
+    expect(opcion('Sedentaria')).not.toBeChecked()
   })
 })

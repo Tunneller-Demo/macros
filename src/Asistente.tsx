@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { errorDe, type DatoNumerico, type Respuestas } from '@/datos'
-import { MARCA, NIVELES_DE_ACTIVIDAD, NOTA_SEXO, OBJETIVOS, PREGUNTAS, SEXOS, type Opcion } from '@/textos'
+import { MARCA, NIVELES_DE_ACTIVIDAD, NOTA_OBJETIVO, NOTA_SEXO, OBJETIVOS, PREGUNTAS, SEXOS, type Opcion } from '@/textos'
 
 type PasoDeOpciones = {
   tipo: 'opciones'
@@ -21,7 +21,7 @@ type PasoNumerico = {
 type Paso = PasoDeOpciones | PasoNumerico
 
 const PASOS: Paso[] = [
-  { tipo: 'opciones', campo: 'objetivo', opciones: OBJETIVOS },
+  { tipo: 'opciones', campo: 'objetivo', opciones: OBJETIVOS, nota: NOTA_OBJETIVO },
   { tipo: 'opciones', campo: 'sexo', opciones: SEXOS, nota: NOTA_SEXO },
   { tipo: 'numero', campo: 'edad', unidad: 'años', inputMode: 'numeric' },
   { tipo: 'numero', campo: 'peso', unidad: 'kg', inputMode: 'decimal' },

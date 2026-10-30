@@ -9,7 +9,7 @@ export default function App() {
   const [terminado, setTerminado] = useState(false)
 
   const datos = terminado ? leerDatos(respuestas) : null
-  if (datos) return <Resultados resultado={calcular(datos)} />
+  if (datos) return <Resultados datos={datos} resultado={calcular(datos)} alEditar={() => setTerminado(false)} />
 
   return (
     <Asistente

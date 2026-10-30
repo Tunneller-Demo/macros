@@ -34,6 +34,7 @@ export const PREGUNTAS = {
 }
 
 export const NOTA_SEXO = 'Se usa solo porque la fórmula lo requiere'
+export const NOTA_OBJETIVO = 'Orientativa y para personas adultas. No apta para embarazo ni lactancia.'
 
 export const ERROR_SIN_OPCION = 'Elige una opción para seguir'
 export const ERROR_DE_MENORES = 'Esta calculadora es para personas adultas, a partir de 18 años'
@@ -73,3 +74,11 @@ export const MENSAJES_DE_REGLA: Record<ReglaDeProteccion, string> = {
     'Tu gasto diario ya es bajo, así que no proponemos recortarlo: estas son las calorías que mantienen tu peso.',
   'suelo-de-calorias': 'Hemos limitado el recorte para no proponerte menos de 1200 kcal al día.',
 }
+
+export const MARGEN_DE_ERROR =
+  'Es una estimación: tu gasto real puede variar unas 300 kcal arriba o abajo. Si tu peso no evoluciona como esperabas, ajusta.'
+
+export const AVISO_ORIENTATIVO =
+  'Este resultado es orientativo y no sustituye el consejo de un profesional sanitario. La calculadora está pensada para personas adultas: no sirve para menores ni durante el embarazo o la lactancia. Si tienes alguna enfermedad o dudas sobre tu alimentación, consulta a un profesional.'
+
+export const CONSTRUIDA_CON = 'Construida con Tunneller'

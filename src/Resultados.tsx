@@ -1,8 +1,22 @@
 import { useState, type CSSProperties } from 'react'
 import { repartoEnEnteros, type Macro, type RepartoDeMacros, type Resultado } from '@/calculo'
+import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import type { Datos } from '@/datos'
 import { COMIDAS_POR_DEFECTO, NUMEROS_DE_COMIDAS, planDeComidas, type Comida, type NumeroDeComidas } from '@/plan'
-import { MACROS, MARCA, MENSAJES_DE_REGLA, NOMBRES_DE_COMIDA } from '@/textos'
+import {
+  AVISO_ORIENTATIVO,
+  CONSTRUIDA_CON,
+  MACROS,
+  MARCA,
+  MARGEN_DE_ERROR,
+  MENSAJES_DE_REGLA,
+  NIVELES_DE_ACTIVIDAD,
+  NOMBRES_DE_COMIDA,
+  OBJETIVOS,
+  SEXOS,
+  type Opcion,
+} from '@/textos'
 
 const COLORES_DEL_MACRO: Record<Macro, { sector: string; punto: string; sobreVerde: string }> = {
   proteina: { sector: 'stroke-proteina', punto: 'bg-proteina', sobreVerde: 'text-proteina-sobre-verde' },
@@ -16,6 +30,41 @@ const COLORES_DEL_MACRO: Record<Macro, { sector: string; punto: string; sobreVer
 
 // Hueco entre sectores, sobre una circunferencia de 100.
 const HUECO_DEL_PLATO = 2
+
+function nombreDe(opciones: Opcion[], valor: string) {
+  return opciones.find((opcion) => opcion.valor === valor)?.nombre
+}
+
+function Resumen({ datos, alEditar }: { datos: Datos; alEditar: () => void }) {
+  const partes = [
+    nombreDe(OBJETIVOS, datos.objetivo),
+    nombreDe(SEXOS, datos.sexo),
+    `${datos.edad} años`,
+    `${datos.peso.toLocaleString('es')} kg`,
+    `${datos.talla} cm`,
+    nombreDe(NIVELES_DE_ACTIVIDAD, datos.actividad),
+  ]
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <ul role="list" className="flex flex-wrap gap-2">
+        {partes.map((parte) => (
+          <li key={parte} className="rounded-full bg-crema/12 px-3 py-1 text-crema">
+            {parte}
+          </li>
+        ))}
+      </ul>
+      <Button
+        type="button"
+        variant="link"
+        onClick={alEditar}
+        className="h-auto px-2 py-1 font-normal text-grasa underline"
+      >
+        Editar
+      </Button>
+    </div>
+  )
+}
 
 function Plato({ reparto }: { reparto: RepartoDeMacros }) {
   return (
@@ -147,7 +196,9 @@ function PlanDeComidas({ calorias, reparto }: { calorias: number; reparto: Repar
   )
 }
 
-export function Resultados({ resultado }: { resultado: Resultado }) {
+type Props = { datos: Datos; resultado: Resultado; alEditar: () => void }
+
+export function Resultados({ datos, resultado, alEditar }: Props) {
   const caloriasObjetivo = Math.round(resultado.caloriasObjetivo)
   const reparto = repartoEnEnteros(resultado)
 
@@ -155,7 +206,10 @@ export function Resultados({ resultado }: { resultado: Resultado }) {
     <div className="min-h-screen bg-crema pb-12 font-instrument text-bosque">
       <header className="bg-bosque px-5 pb-20 pt-6 sm:px-8">
         <div className="mx-auto max-w-5xl">
-          <div className="mb-10 font-fraunces text-lg text-crema">{MARCA}</div>
+          <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <span className="font-fraunces text-lg text-crema">{MARCA}</span>
+            <Resumen datos={datos} alEditar={alEditar} />
+          </div>
           <h1 className="text-lg font-normal text-crema/75">Tus calorías objetivo</h1>
           <p className="font-fraunces text-8xl leading-none text-crema sm:text-[11rem]">
             <span>{caloriasObjetivo}</span>
@@ -171,6 +225,7 @@ export function Resultados({ resultado }: { resultado: Resultado }) {
             <span className="mx-2">·</span>
             Gasto diario: <b className="font-semibold text-crema">{Math.round(resultado.gastoDiario)} kcal</b>
           </p>
+          <p className="mt-3 max-w-2xl text-sm text-crema/75">{MARGEN_DE_ERROR}</p>
         </div>
       </header>
       <main className="-mt-10 px-5 sm:px-8">
@@ -179,6 +234,12 @@ export function Resultados({ resultado }: { resultado: Resultado }) {
         </div>
         <PlanDeComidas calorias={caloriasObjetivo} reparto={reparto} />
       </main>
+      <footer className="mt-12 px-5 text-sm sm:px-8">
+        <div className="mx-auto max-w-5xl space-y-2">
+          <p>{AVISO_ORIENTATIVO}</p>
+          <p>{CONSTRUIDA_CON}</p>
+        </div>
+      </footer>
     </div>
   )
 }
