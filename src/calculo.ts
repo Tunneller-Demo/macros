@@ -1,6 +1,6 @@
 import type { Datos, NivelDeActividad, Objetivo } from '@/datos'
 
-const FACTOR_DE_ACTIVIDAD: Record<NivelDeActividad, number> = {
+const MULTIPLICADOR_POR_NIVEL_DE_ACTIVIDAD: Record<NivelDeActividad, number> = {
   sedentaria: 1.4,
   moderada: 1.6,
   activa: 1.8,
@@ -22,7 +22,7 @@ export type Resultado = {
 // Calcula sin redondear: redondear es cosa de quien muestra las cifras.
 export function calcular({ objetivo, sexo, edad, peso, talla, actividad }: Datos): Resultado {
   const metabolismoEnReposo = 10 * peso + 6.25 * talla - 5 * edad + (sexo === 'hombre' ? 5 : -161)
-  const gastoDiario = metabolismoEnReposo * FACTOR_DE_ACTIVIDAD[actividad]
+  const gastoDiario = metabolismoEnReposo * MULTIPLICADOR_POR_NIVEL_DE_ACTIVIDAD[actividad]
   return {
     metabolismoEnReposo,
     gastoDiario,

@@ -1,8 +1,6 @@
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import App from '@/App'
-import { opcion, recorrerAsistente, type SeisDatos } from '@/test/recorrer'
+import { abrirApp, opcion, recorrerAsistente, responderHastaLaActividad, type SeisDatos, type Usuario } from '@/test/recorrer'
 
 const mujerDe35: Omit<SeisDatos, 'objetivo'> = {
   sexo: 'Mujer',
@@ -28,29 +26,20 @@ function campo() {
   return screen.getByRole('textbox')
 }
 
-function abrirApp() {
-  const user = userEvent.setup()
-  render(<App />)
-  return user
-}
-
-async function hastaLaEdad(user: ReturnType<typeof userEvent.setup>) {
+async function hastaLaEdad(user: Usuario) {
   await user.click(opcion('Bajar'))
   await user.click(opcion('Mujer'))
 }
 
-async function hastaLaActividad(user: ReturnType<typeof userEvent.setup>) {
-  await hastaLaEdad(user)
-  for (const valor of ['35', '65', '165']) {
-    await user.type(campo(), valor)
-    await user.click(seguir())
-  }
+function hastaLaActividad(user: Usuario) {
+  return responderHastaLaActividad(user, { ...mujerDe35, objetivo: 'Bajar' })
 }
 
 describe('Asistente', () => {
   it('hace las seis preguntas en orden, una por pantalla, con su progreso', async () => {
     const user = abrirApp()
 
+    expect(screen.getByText('Macros')).toBeVisible()
     expect(pregunta('¿Qué quieres hacer con tu peso?')).toBeVisible()
     expect(screen.getByText('1 de 6')).toBeVisible()
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1')
@@ -162,8 +151,9 @@ describe('Resultados', () => {
 
     expect(screen.getByRole('heading', { name: 'Tus calorías objetivo' })).toBeVisible()
     expect(screen.getByText('1383')).toBeVisible()
-    expect(screen.getByText('1345 kcal')).toBeVisible()
-    expect(screen.getByText('1883 kcal')).toBeVisible()
+    expect(screen.getByText(/Metabolismo en reposo/)).toHaveTextContent(
+      /Metabolismo en reposo: 1345 kcal.*Gasto diario: 1883 kcal/,
+    )
   })
 
   it.each([
