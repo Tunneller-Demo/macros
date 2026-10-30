@@ -1,4 +1,4 @@
-import type { Macro } from '@/calculo'
+import type { Macro, ReglaDeProteccion } from '@/calculo'
 import type { NivelDeActividad, Objetivo, Sexo } from '@/datos'
 
 export const MARCA = 'Macros'
@@ -39,3 +39,11 @@ export const MACROS: Opcion<Macro>[] = [
   { valor: 'grasa', nombre: 'Grasa' },
   { valor: 'carbohidratos', nombre: 'Carbohidratos' },
 ]
+
+export const MENSAJES_DE_REGLA: Record<ReglaDeProteccion, string> = {
+  'bajo-peso':
+    'Con tu peso y tu talla no proponemos bajar: estas son las calorías que lo mantienen. Si quieres perder peso, consúltalo con un profesional sanitario.',
+  'gasto-bajo':
+    'Tu gasto diario ya es bajo, así que no proponemos recortarlo: estas son las calorías que mantienen tu peso.',
+  'suelo-de-calorias': 'Hemos limitado el recorte para no proponerte menos de 1200 kcal al día.',
+}

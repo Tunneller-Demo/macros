@@ -1,5 +1,5 @@
 import { repartoEnEnteros, type Macro, type RepartoDeMacros, type Resultado } from '@/calculo'
-import { MACROS, MARCA } from '@/textos'
+import { MACROS, MARCA, MENSAJES_DE_REGLA } from '@/textos'
 
 const COLORES_DEL_MACRO: Record<Macro, { sector: string; punto: string }> = {
   proteina: { sector: 'stroke-proteina', punto: 'bg-proteina' },
@@ -74,6 +74,11 @@ export function Resultados({ resultado }: { resultado: Resultado }) {
             <span>{Math.round(resultado.caloriasObjetivo)}</span>
             <span className="ml-2 text-2xl sm:text-4xl">kcal al día</span>
           </p>
+          {resultado.regla && (
+            <p className="mt-5 max-w-2xl border-l-4 border-grasa pl-4 text-lg text-crema">
+              {MENSAJES_DE_REGLA[resultado.regla]}
+            </p>
+          )}
           <p className="mt-5 text-crema/75">
             Metabolismo en reposo: <b className="font-semibold text-crema">{Math.round(resultado.metabolismoEnReposo)} kcal</b>
             <span className="mx-2">·</span>

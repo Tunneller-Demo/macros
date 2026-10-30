@@ -27,27 +27,49 @@ const KCAL_POR_GRAMO: Record<Macro, number> = {
 
 const TOPE_DE_PROTEINA = 0.35
 const PARTE_DE_GRASA = 0.3
+const IMC_DE_BAJO_PESO = 18.5
+const SUELO_DE_CALORIAS = 1200
 
 export type Macro = 'proteina' | 'grasa' | 'carbohidratos'
+export type ReglaDeProteccion = 'bajo-peso' | 'gasto-bajo' | 'suelo-de-calorias'
 
 export type Resultado = {
   metabolismoEnReposo: number
   gastoDiario: number
   caloriasObjetivo: number
+  regla: ReglaDeProteccion | null
   gramosDeMacros: Record<Macro, number>
 }
 
 export type CifrasDeMacro = { gramos: number; porcentaje: number }
 export type RepartoDeMacros = Record<Macro, CifrasDeMacro>
 
+// Solo protege al bajar. El orden importa: gana la primera regla que se cumple.
+function reglaDeProteccion({ objetivo, peso, talla }: Datos, gastoDiario: number): ReglaDeProteccion | null {
+  if (objetivo !== 'bajar') return null
+  const imc = peso / (talla / 100) ** 2
+  if (imc < IMC_DE_BAJO_PESO) return 'bajo-peso'
+  if (gastoDiario < SUELO_DE_CALORIAS) return 'gasto-bajo'
+  if (gastoDiario + AJUSTE_POR_OBJETIVO.bajar < SUELO_DE_CALORIAS) return 'suelo-de-calorias'
+  return null
+}
+
+function caloriasConRegla(regla: ReglaDeProteccion | null, gastoDiario: number, objetivo: Objetivo) {
+  if (regla === 'bajo-peso' || regla === 'gasto-bajo') return gastoDiario
+  if (regla === 'suelo-de-calorias') return SUELO_DE_CALORIAS
+  return gastoDiario + AJUSTE_POR_OBJETIVO[objetivo]
+}
+
 // Calcula sin redondear: las cifras enteras se sacan al final, para mostrarlas.
-export function calcular({ objetivo, sexo, edad, peso, talla, actividad }: Datos): Resultado {
+export function calcular(datos: Datos): Resultado {
+  const { objetivo, sexo, edad, peso, talla, actividad } = datos
   const metabolismoEnReposo = 10 * peso + 6.25 * talla - 5 * edad + (sexo === 'hombre' ? 5 : -161)
   const gastoDiario = metabolismoEnReposo * MULTIPLICADOR_POR_NIVEL_DE_ACTIVIDAD[actividad]
-  const caloriasObjetivo = gastoDiario + AJUSTE_POR_OBJETIVO[objetivo]
+  const regla = reglaDeProteccion(datos, gastoDiario)
+  const caloriasObjetivo = caloriasConRegla(regla, gastoDiario, objetivo)
 
   const proteina = Math.min(
-    PROTEINA_POR_KG[objetivo] * peso,
+    PROTEINA_POR_KG[regla === 'bajo-peso' ? 'mantener' : objetivo] * peso,
     (TOPE_DE_PROTEINA * caloriasObjetivo) / KCAL_POR_GRAMO.proteina,
   )
   const grasa = (PARTE_DE_GRASA * caloriasObjetivo) / KCAL_POR_GRAMO.grasa
@@ -59,6 +81,7 @@ export function calcular({ objetivo, sexo, edad, peso, talla, actividad }: Datos
     metabolismoEnReposo,
     gastoDiario,
     caloriasObjetivo,
+    regla,
     gramosDeMacros: { proteina, grasa, carbohidratos },
   }
 }
