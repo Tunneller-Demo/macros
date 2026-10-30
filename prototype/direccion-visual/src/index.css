@@ -1,0 +1,22 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-archivo: 'Archivo Variable', sans-serif;
+  --font-fraunces: 'Fraunces Variable', serif;
+  --font-instrument: 'Instrument Sans Variable', sans-serif;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Quita las flechas de los campos numéricos */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  appearance: textfield;
+}
