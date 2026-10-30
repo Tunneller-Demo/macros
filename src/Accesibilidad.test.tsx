@@ -400,3 +400,15 @@ describe('axe', () => {
     expect(await infraccionesDeAxe()).toEqual([])
   })
 })
+
+describe('lectura de las cifras', () => {
+  it('separa cada cifra de su unidad y de su porcentaje', async () => {
+    await recorrerAsistente(datos)
+
+    expect(screen.getByText('kcal al día').closest('p')?.textContent).toBe('1383 kcal al día')
+    expect(screen.getAllByText('Proteína')[0].closest('li')?.textContent).toContain('117 g 34 %')
+    expect(screen.getByText('1345 kcal').closest('p')?.textContent).toBe(
+      'Metabolismo en reposo: 1345 kcal · Gasto diario: 1883 kcal',
+    )
+  })
+})

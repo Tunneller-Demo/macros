@@ -117,7 +117,7 @@ type PropsDeCampo = {
 
 function CampoNumerico({ pregunta, unidad, inputMode, valor, error, poner, compacto = false, campoRef }: PropsDeCampo) {
   return (
-    <label className="flex min-w-0 flex-1 items-baseline gap-3 border-b-2 border-crema/40 pb-1 focus-within:border-grasa">
+    <label className={`flex min-w-0 flex-1 items-baseline border-b-2 border-crema/40 pb-1 focus-within:border-grasa ${compacto ? 'gap-1.5 min-[22rem]:gap-3' : 'gap-3'}`}>
       <span className="sr-only">{pregunta}</span>
       <input
         ref={campoRef}
@@ -192,7 +192,7 @@ export function Asistente({ respuestas, responder, alTerminar }: Props) {
     }
     if (enImperial && campo === 'talla') {
       return (
-        <div className="flex gap-5">
+        <div className="flex gap-3 min-[22rem]:gap-5">
           <CampoNumerico {...comun} compacto campoRef={primerCampoRef} valor={respuestas.pies} poner={(pies) => cambiar({ pies })} />
           <CampoNumerico {...comun} compacto unidad="pulgadas" valor={respuestas.pulgadas} poner={(pulgadas) => cambiar({ pulgadas })} />
         </div>

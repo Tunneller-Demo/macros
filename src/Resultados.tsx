@@ -116,7 +116,8 @@ function TarjetaDeMacros({ reparto }: { reparto: RepartoDeMacros }) {
               </span>
               <span className="tabular-nums">
                 <span className="font-fraunces text-3xl">{reparto[valor].gramos} g</span>
-                <span className="ml-3 text-bosque/70">{reparto[valor].porcentaje} %</span>
+                {' '}
+                <span className="ml-2 text-bosque/70">{reparto[valor].porcentaje} %</span>
               </span>
             </li>
           ))}
@@ -226,7 +227,7 @@ export function Resultados({ datos, medidas, resultado, alEditar }: Props) {
           </h1>
           <p className="font-fraunces text-8xl leading-none text-crema sm:text-[11rem]">
             <span>{caloriasObjetivo}</span>
-            <span className="ml-2 text-2xl sm:text-4xl">kcal al día</span>
+            <span className="text-2xl sm:text-4xl"> kcal al día</span>
           </p>
           {resultado.regla && (
             <p className="mt-5 max-w-2xl border-l-4 border-grasa pl-4 text-lg text-crema">
@@ -235,7 +236,7 @@ export function Resultados({ datos, medidas, resultado, alEditar }: Props) {
           )}
           <p className="mt-5 text-crema/75">
             Metabolismo en reposo: <b className="font-semibold text-crema">{Math.round(resultado.metabolismoEnReposo)} kcal</b>
-            <span className="mx-2">·</span>
+            <span className="mx-1"> · </span>
             Gasto diario: <b className="font-semibold text-crema">{Math.round(resultado.gastoDiario)} kcal</b>
           </p>
           <p className="mt-3 max-w-2xl text-sm text-crema/75">{MARGEN_DE_ERROR}</p>
