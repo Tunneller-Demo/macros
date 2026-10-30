@@ -20,8 +20,13 @@ const mujerDe35: Omit<SeisDatos, 'objetivo'> = {
   actividad: 'Sedentaria',
 }
 
+// El título también anuncia «Pregunta N de 6», solo para el lector de pantalla.
+function esLaPregunta(texto: string) {
+  return (nombre: string) => nombre.endsWith(texto)
+}
+
 function pregunta(texto: string) {
-  return screen.getByRole('heading', { name: texto })
+  return screen.getByRole('heading', { name: esLaPregunta(texto) })
 }
 
 function seguir() {
@@ -105,7 +110,7 @@ describe('Asistente', () => {
     await user.click(opcion('Bajar'))
     expect(pregunta('¿Cuál es tu sexo?')).toBeVisible()
     expect(screen.getByText('2 de 6')).toBeVisible()
-    expect(screen.queryByRole('heading', { name: '¿Qué quieres hacer con tu peso?' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: esLaPregunta('¿Qué quieres hacer con tu peso?') })).not.toBeInTheDocument()
 
     await user.click(opcion('Mujer'))
     expect(pregunta('¿Cuántos años tienes?')).toBeVisible()

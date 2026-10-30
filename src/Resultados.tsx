@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { repartoEnEnteros, type Macro, type RepartoDeMacros, type Resultado } from '@/calculo'
 import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -203,6 +203,11 @@ type Props = { datos: Datos; medidas: Medidas; resultado: Resultado; alEditar: (
 export function Resultados({ datos, medidas, resultado, alEditar }: Props) {
   const caloriasObjetivo = Math.round(resultado.caloriasObjetivo)
   const reparto = repartoEnEnteros(resultado)
+  const tituloRef = useRef<HTMLHeadingElement>(null)
+
+  useEffect(() => {
+    tituloRef.current?.focus()
+  }, [])
 
   return (
     <div className="min-h-screen bg-crema pb-12 font-instrument text-bosque">
@@ -212,7 +217,13 @@ export function Resultados({ datos, medidas, resultado, alEditar }: Props) {
             <span className="font-fraunces text-lg text-crema">{MARCA}</span>
             <Resumen datos={datos} medidas={medidas} alEditar={alEditar} />
           </div>
-          <h1 className="text-lg font-normal text-crema/75">Tus calorías objetivo</h1>
+          <h1
+            ref={tituloRef}
+            tabIndex={-1}
+            className="text-lg font-normal text-crema/75 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            Tus calorías objetivo
+          </h1>
           <p className="font-fraunces text-8xl leading-none text-crema sm:text-[11rem]">
             <span>{caloriasObjetivo}</span>
             <span className="ml-2 text-2xl sm:text-4xl">kcal al día</span>
@@ -230,7 +241,7 @@ export function Resultados({ datos, medidas, resultado, alEditar }: Props) {
           <p className="mt-3 max-w-2xl text-sm text-crema/75">{MARGEN_DE_ERROR}</p>
         </div>
       </header>
-      <main className="-mt-10 px-5 sm:px-8">
+      <main className="-mt-10 px-5 [--color-ring:var(--color-bosque)] sm:px-8">
         <div className="mx-auto max-w-5xl">
           <TarjetaDeMacros reparto={reparto} />
         </div>

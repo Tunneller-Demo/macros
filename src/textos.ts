@@ -38,6 +38,10 @@ export const PREGUNTAS = {
   actividad: '¿Cómo es tu día a día?',
 }
 
+export function anuncioDePregunta(numero: number, total: number) {
+  return `Pregunta ${numero} de ${total}.`
+}
+
 export const NOTA_SEXO = 'Se usa solo porque la fórmula lo requiere'
 export const NOTA_OBJETIVO = 'Orientativa y para personas adultas. No apta para embarazo ni lactancia.'
 

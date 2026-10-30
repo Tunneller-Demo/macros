@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type Ref } from 'react'
 import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cambiarUnidades, errorDe, type DatoNumerico, type Respuestas, type Unidades } from '@/datos'
@@ -11,6 +11,7 @@ import {
   PREGUNTAS,
   SEXOS,
   UNIDADES,
+  anuncioDePregunta,
   type Opcion,
 } from '@/textos'
 
@@ -40,29 +41,40 @@ const PASOS: Paso[] = [
   { tipo: 'opciones', campo: 'actividad', opciones: NIVELES_DE_ACTIVIDAD },
 ]
 
+const ID_DEL_TITULO = 'titulo-de-la-pregunta'
 const ID_DEL_ERROR = 'error-de-la-pregunta'
 
-type PropsDeOpciones = { opciones: Opcion[]; valor: string; error: string | null; elegir: (valor: string) => void }
+type PropsDeOpciones = {
+  opciones: Opcion[]
+  valor: string
+  error: string | null
+  elegir: (valor: string) => void
+  primeraRef: Ref<HTMLButtonElement>
+}
 
-function Opciones({ opciones, valor, error, elegir }: PropsDeOpciones) {
+function Opciones({ opciones, valor, error, elegir, primeraRef }: PropsDeOpciones) {
   return (
     <ToggleGroup
       type="single"
       spacing={3}
       value={valor}
+      aria-labelledby={ID_DEL_TITULO}
       aria-invalid={error ? true : undefined}
       aria-describedby={error ? ID_DEL_ERROR : undefined}
       className="grid w-full"
     >
-      {opciones.map((opcion) => (
+      {opciones.map((opcion, i) => (
         <ToggleGroupItem
           key={opcion.valor}
+          ref={i === 0 ? primeraRef : undefined}
           value={opcion.valor}
           onClick={() => elegir(opcion.valor)}
           className="h-auto w-full flex-col items-start gap-0 whitespace-normal rounded-2xl border border-crema/60 px-5 py-4 text-left text-crema data-[state=off]:hover:border-crema data-[state=on]:border-grasa data-[state=on]:bg-grasa data-[state=on]:text-bosque"
         >
           <span className="font-fraunces text-2xl font-normal">{opcion.nombre}</span>
-          {opcion.descripcion && <span className="text-sm font-normal opacity-80">{opcion.descripcion}</span>}
+          {opcion.descripcion && (
+            <span className="text-sm font-normal opacity-80 in-data-[state=on]:opacity-100">{opcion.descripcion}</span>
+          )}
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
@@ -100,13 +112,15 @@ type PropsDeCampo = {
   error: string | null
   poner: (valor: string) => void
   compacto?: boolean
+  campoRef?: Ref<HTMLInputElement>
 }
 
-function CampoNumerico({ pregunta, unidad, inputMode, valor, error, poner, compacto = false }: PropsDeCampo) {
+function CampoNumerico({ pregunta, unidad, inputMode, valor, error, poner, compacto = false, campoRef }: PropsDeCampo) {
   return (
     <label className="flex min-w-0 flex-1 items-baseline gap-3 border-b-2 border-crema/40 pb-1 focus-within:border-grasa">
       <span className="sr-only">{pregunta}</span>
       <input
+        ref={campoRef}
         type="text"
         inputMode={inputMode}
         autoComplete="off"
@@ -133,6 +147,14 @@ export function Asistente({ respuestas, responder, alTerminar }: Props) {
   const paso = PASOS[indice]
   const esLaUltima = indice === PASOS.length - 1
   const valor = respuestas[paso.campo]
+  const tituloRef = useRef<HTMLHeadingElement>(null)
+  const primeraOpcionRef = useRef<HTMLButtonElement>(null)
+  const primerCampoRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const destino = PASOS[indice].tipo === 'opciones' ? tituloRef : primerCampoRef
+    destino.current?.focus()
+  }, [indice])
 
   function irA(nuevoIndice: number) {
     setError(null)
@@ -147,8 +169,11 @@ export function Asistente({ respuestas, responder, alTerminar }: Props) {
   function seguir(evento: FormEvent) {
     evento.preventDefault()
     const errorDelPaso = errorDe(paso.campo, respuestas)
-    if (errorDelPaso !== null) setError(errorDelPaso)
-    else if (esLaUltima) alTerminar()
+    if (errorDelPaso !== null) {
+      setError(errorDelPaso)
+      const primerControl = paso.tipo === 'opciones' ? primeraOpcionRef : primerCampoRef
+      primerControl.current?.focus()
+    } else if (esLaUltima) alTerminar()
     else irA(indice + 1)
   }
 
@@ -168,7 +193,7 @@ export function Asistente({ respuestas, responder, alTerminar }: Props) {
     if (enImperial && campo === 'talla') {
       return (
         <div className="flex gap-5">
-          <CampoNumerico {...comun} compacto valor={respuestas.pies} poner={(pies) => cambiar({ pies })} />
+          <CampoNumerico {...comun} compacto campoRef={primerCampoRef} valor={respuestas.pies} poner={(pies) => cambiar({ pies })} />
           <CampoNumerico {...comun} compacto unidad="pulgadas" valor={respuestas.pulgadas} poner={(pulgadas) => cambiar({ pulgadas })} />
         </div>
       )
@@ -176,6 +201,7 @@ export function Asistente({ respuestas, responder, alTerminar }: Props) {
     return (
       <CampoNumerico
         {...comun}
+        campoRef={primerCampoRef}
         valor={respuestas[campo]}
         poner={(escrito) => cambiar({ [campo]: escrito })}
       />
@@ -183,7 +209,7 @@ export function Asistente({ respuestas, responder, alTerminar }: Props) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-bosque px-5 pb-20 pt-6 font-instrument sm:px-8">
+    <main className="flex min-h-screen flex-col bg-bosque px-5 pb-20 pt-6 font-instrument sm:px-8">
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col">
         <div className="flex items-center justify-between text-sm text-crema/70">
           <span className="font-fraunces text-lg text-crema">{MARCA}</span>
@@ -204,12 +230,24 @@ export function Asistente({ respuestas, responder, alTerminar }: Props) {
           ))}
         </div>
         <form className="my-auto py-10" onSubmit={seguir}>
-          <h1 className="font-fraunces text-[2.6rem] leading-[1.05] font-normal text-crema sm:text-6xl">
-            {PREGUNTAS[paso.campo]}
+          <h1
+            ref={tituloRef}
+            id={ID_DEL_TITULO}
+            tabIndex={-1}
+            className="font-fraunces text-[2.6rem] leading-[1.05] font-normal text-crema focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-ring sm:text-6xl"
+          >
+            <span className="sr-only">{anuncioDePregunta(indice + 1, PASOS.length)}</span> {PREGUNTAS[paso.campo]}
           </h1>
           <p className="mb-8 mt-3 min-h-5 text-sm text-crema/70">{paso.tipo === 'opciones' && paso.nota}</p>
           {paso.tipo === 'opciones' ? (
-            <Opciones opciones={paso.opciones} valor={valor} error={error} elegir={elegir} />
+            <Opciones
+              key={paso.campo}
+              opciones={paso.opciones}
+              valor={valor}
+              error={error}
+              elegir={elegir}
+              primeraRef={primeraOpcionRef}
+            />
           ) : (
             <div key={paso.campo}>
               {paso.unidadImperial && (
@@ -239,6 +277,6 @@ export function Asistente({ respuestas, responder, alTerminar }: Props) {
           </div>
         </form>
       </div>
-    </div>
+    </main>
   )
 }
