@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import html from '../index.html?raw'
@@ -295,6 +296,62 @@ describe('Teclado', () => {
 describe('Documento', () => {
   it('declara el idioma español', () => {
     expect(html).toMatch(/<html[^>]*\blang="es"/)
+  })
+})
+
+describe('Metadatos para compartir', () => {
+  const TITULO = 'Calculadora de macros'
+  const DESCRIPCION =
+    'Responde seis preguntas y descubre tus calorías, tus macros y cómo repartirlos entre tus comidas. Sin cuentas y sin guardar tus datos.'
+  const URL_DE_LA_IMAGEN = 'https://tunneller-demo.github.io/macros/og-imagen.png'
+
+  const documento = new DOMParser().parseFromString(html, 'text/html')
+  const meta = (selector: string) => documento.querySelector(`meta[${selector}]`)?.getAttribute('content')
+  const propiedad = (nombre: string) => meta(`property="${nombre}"`)
+  const nombre = (valor: string) => meta(`name="${valor}"`)
+  const publico = (archivo: string) => readFileSync(`public/${archivo}`)
+
+  it('da el título y la descripción de la Especificación a las tarjetas', () => {
+    expect(documento.title).toBe(TITULO)
+    expect(nombre('description')).toBe(DESCRIPCION)
+    expect(propiedad('og:title')).toBe(TITULO)
+    expect(propiedad('og:description')).toBe(DESCRIPCION)
+    expect(nombre('twitter:title')).toBe(TITULO)
+    expect(nombre('twitter:description')).toBe(DESCRIPCION)
+  })
+
+  it('identifica la página en Open Graph y pide la tarjeta grande de Twitter', () => {
+    expect(propiedad('og:type')).toBe('website')
+    expect(propiedad('og:url')).toBe('https://tunneller-demo.github.io/macros/')
+    expect(propiedad('og:locale')).toBe('es_ES')
+    expect(nombre('twitter:card')).toBe('summary_large_image')
+  })
+
+  it('publica la imagen con URL absoluta y texto alternativo', () => {
+    expect(propiedad('og:image')).toBe(URL_DE_LA_IMAGEN)
+    expect(nombre('twitter:image')).toBe(URL_DE_LA_IMAGEN)
+    expect(propiedad('og:image:alt')).toBeTruthy()
+    expect(nombre('twitter:image:alt')).toBe(propiedad('og:image:alt'))
+  })
+
+  it('la imagen es un PNG de 1200×630', () => {
+    const imagen = publico('og-imagen.png')
+
+    expect(imagen.subarray(1, 4).toString()).toBe('PNG')
+    expect([imagen.readUInt32BE(16), imagen.readUInt32BE(20)]).toEqual([1200, 630])
+    expect(propiedad('og:image:type')).toBe('image/png')
+    expect(propiedad('og:image:width')).toBe('1200')
+    expect(propiedad('og:image:height')).toBe('630')
+  })
+
+  it('el favicon es el plato, con los tres colores de los macros', () => {
+    const favicon = documento.querySelector('link[rel="icon"]')
+
+    expect(favicon?.getAttribute('href')).toBe('/favicon.svg')
+    expect(favicon?.getAttribute('type')).toBe('image/svg+xml')
+
+    const svg = publico('favicon.svg').toString()
+    for (const color of ['#d9512c', '#e4a72b', '#6f9a5c']) expect(svg).toContain(color)
   })
 })
 
