@@ -36,6 +36,10 @@ _Avoid_: delgadez, infrapeso
 Cuánto puede desviarse el gasto real de una persona de su gasto diario calculado.
 _Avoid_: incertidumbre, error estándar, precisión
 
+**Aviso orientativo**:
+El texto que advierte de que el resultado es orientativo, para quién está pensada la calculadora y que no sustituye el consejo de un profesional sanitario.
+_Avoid_: descargo, disclaimer, aviso legal, aviso médico
+
 **Macros**:
 La proteína, la grasa y los carbohidratos de la dieta, medidos en gramos.
 _Avoid_: macronutrientes, nutrientes
