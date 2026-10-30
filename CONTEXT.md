@@ -21,8 +21,12 @@ Lo que la persona quiere hacer con su peso: bajar, mantener o subir.
 _Avoid_: meta, fase, déficit, superávit
 
 **Calorías objetivo**:
-Las calorías diarias que se proponen a la persona: su gasto diario ajustado según su objetivo.
+Las calorías diarias que se proponen a la persona: su gasto diario ajustado según su objetivo y, al bajar, según las reglas de protección.
 _Avoid_: calorías recomendadas, ingesta, presupuesto calórico
+
+**Regla de protección**:
+Cada una de las condiciones que, con objetivo de bajar, evitan proponer una cifra demasiado baja. Se aplica la primera que se cumple.
+_Avoid_: excepción, salvaguarda
 
 **Suelo de calorías**:
 La cifra por debajo de la cual el objetivo de bajar no reduce las calorías objetivo.

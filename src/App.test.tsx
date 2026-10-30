@@ -289,7 +289,7 @@ describe('Reglas de protección', () => {
   const MENSAJE_SUELO = 'Hemos limitado el recorte para no proponerte menos de 1200 kcal al día.'
   const MENSAJES = [MENSAJE_BAJO_PESO, MENSAJE_GASTO_BAJO, MENSAJE_SUELO]
 
-  function bajar(sexo: SeisDatos['sexo'], edad: string, peso: string, talla: string, actividad: SeisDatos['actividad'] = 'Sedentaria'): SeisDatos {
+  function paraBajar(sexo: SeisDatos['sexo'], edad: string, peso: string, talla: string, actividad: SeisDatos['actividad'] = 'Sedentaria'): SeisDatos {
     return { objetivo: 'Bajar', sexo, edad, peso, talla, actividad }
   }
 
@@ -300,17 +300,17 @@ describe('Reglas de protección', () => {
     }
   }
 
-  const bajoPeso = bajar('Mujer', '25', '40', '165', 'Muy activa')
+  const bajoPeso = paraBajar('Mujer', '25', '40', '165', 'Muy activa')
 
   it.each([
     [bajoPeso, '2291', '2291 kcal', MENSAJE_BAJO_PESO, '56 g', '76 g', '345 g'],
-    [bajar('Mujer', '85', '45', '150'), '1122', '1122 kcal', MENSAJE_GASTO_BAJO, '81 g', '37 g', '115 g'],
-    [bajar('Mujer', '40', '50', '155'), '1200', '1551 kcal', MENSAJE_SUELO, '90 g', '40 g', '120 g'],
+    [paraBajar('Mujer', '85', '45', '150'), '1122', '1122 kcal', MENSAJE_GASTO_BAJO, '81 g', '37 g', '115 g'],
+    [paraBajar('Mujer', '40', '50', '155'), '1200', '1551 kcal', MENSAJE_SUELO, '90 g', '40 g', '120 g'],
     // Tope de proteína a la baja: de 108 g a 105 g.
-    [bajar('Mujer', '70', '60', '160'), '1200', '1525 kcal', MENSAJE_SUELO, '105 g', '40 g', '105 g'],
-    [bajar('Mujer', '35', '65', '165'), '1383', '1883 kcal', null, '117 g', '46 g', '125 g'],
+    [paraBajar('Mujer', '70', '60', '160'), '1200', '1525 kcal', MENSAJE_SUELO, '105 g', '40 g', '105 g'],
+    [paraBajar('Mujer', '35', '65', '165'), '1383', '1883 kcal', null, '117 g', '46 g', '125 g'],
     // Bajo peso con un gasto diario por debajo de 1200 kcal: gana la regla 1.
-    [bajar('Mujer', '80', '35', '150'), '1017', '1017 kcal', MENSAJE_BAJO_PESO, '49 g', '34 g', '129 g'],
+    [paraBajar('Mujer', '80', '35', '150'), '1017', '1017 kcal', MENSAJE_BAJO_PESO, '49 g', '34 g', '129 g'],
   ] as [SeisDatos, string, string, string | null, string, string, string][])(
     'aplica la primera regla que se cumple: %o',
     async (datos, calorias, gasto, mensaje, proteina, grasa, carbohidratos) => {
@@ -327,46 +327,45 @@ describe('Reglas de protección', () => {
 
   it.each([
     // IMC de 18,5 exacto: no es Bajo peso.
-    [bajar('Hombre', '30', '74', '200'), '2083', null],
-    [bajar('Hombre', '30', '73.9', '200'), '2582', MENSAJE_BAJO_PESO],
+    [paraBajar('Hombre', '30', '74', '200'), '2083', null],
+    [paraBajar('Hombre', '30', '73.9', '200'), '2582', MENSAJE_BAJO_PESO],
     // Gasto diario de 1200 kcal exactas: no es la regla 2, sino la 3.
-    [bajar('Mujer', '58', '35.1', '136', 'Moderada'), '1200', MENSAJE_SUELO],
+    [paraBajar('Mujer', '58', '35.1', '136', 'Moderada'), '1200', MENSAJE_SUELO],
     // Gasto diario de 1700 kcal: el recorte llega justo a 1200 kcal y no se limita.
-    [bajar('Mujer', '60', '51.1', '162', 'Moderada'), '1200', null],
-  ] as [SeisDatos, string, string | null][])('los límites de las reglas son estrictos: %o', async (datos, calorias, mensaje) => {
+    [paraBajar('Mujer', '60', '51.1', '162', 'Moderada'), '1200', null],
+  ] as [SeisDatos, string, string | null][])('los umbrales de las reglas son estrictos: %o', async (datos, calorias, mensaje) => {
     await recorrerAsistente(datos)
 
     expect(screen.getByText(calorias)).toBeVisible()
     comprobarMensajes(mensaje)
   })
 
-  it('el mensaje va junto a la cifra principal', async () => {
+  it('el mensaje se lee entre la cifra principal y el metabolismo en reposo', async () => {
     await recorrerAsistente(bajoPeso)
 
-    const cifra = screen.getByText('2291').closest('p')
-    expect(cifra?.nextElementSibling).toHaveTextContent(MENSAJE_BAJO_PESO)
+    const mensaje = screen.getByText(MENSAJE_BAJO_PESO)
+    const sigue = Node.DOCUMENT_POSITION_FOLLOWING
+    expect(screen.getByText('2291').compareDocumentPosition(mensaje) & sigue).toBeTruthy()
+    expect(mensaje.compareDocumentPosition(screen.getByText(/Metabolismo en reposo/)) & sigue).toBeTruthy()
   })
 
   it.each([
-    ['Mantener', '2291', '56 g'],
-    ['Subir', '2691', '64 g'],
-  ] as const)('con objetivo de %s no se aplica ninguna regla, ni con datos que al bajar la tendrían', async (objetivo, calorias, proteina) => {
-    await recorrerAsistente({ ...bajoPeso, objetivo })
+    ['Mantener', bajoPeso, '2291', '56 g'],
+    ['Subir', bajoPeso, '2691', '64 g'],
+    ['Mantener', paraBajar('Mujer', '85', '45', '150'), '1122', '63 g'],
+    ['Subir', paraBajar('Mujer', '85', '45', '150'), '1522', '72 g'],
+    ['Mantener', paraBajar('Mujer', '40', '50', '155'), '1551', '70 g'],
+    ['Subir', paraBajar('Mujer', '40', '50', '155'), '1951', '80 g'],
+  ] as [SeisDatos['objetivo'], SeisDatos, string, string][])(
+    'con objetivo de %s no se aplica ninguna regla, ni con datos que al bajar la tendrían: %o',
+    async (objetivo, datos, calorias, proteina) => {
+      await recorrerAsistente({ ...datos, objetivo })
 
-    expect(screen.getByText(calorias)).toBeVisible()
-    expect(macro('Proteína').getByText(proteina)).toBeVisible()
-    comprobarMensajes(null)
-  })
-
-  it.each([
-    ['Mantener', '1122'],
-    ['Subir', '1522'],
-  ] as const)('con objetivo de %s, un gasto diario bajo tampoco tiene mensaje', async (objetivo, calorias) => {
-    await recorrerAsistente({ ...bajar('Mujer', '85', '45', '150'), objetivo })
-
-    expect(screen.getByText(calorias)).toBeVisible()
-    comprobarMensajes(null)
-  })
+      expect(screen.getByText(calorias)).toBeVisible()
+      expect(macro('Proteína').getByText(proteina)).toBeVisible()
+      comprobarMensajes(null)
+    },
+  )
 
   it('el IMC no se enseña', async () => {
     await recorrerAsistente(bajoPeso)

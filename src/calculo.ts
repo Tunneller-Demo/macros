@@ -54,7 +54,7 @@ function reglaDeProteccion({ objetivo, peso, talla }: Datos, gastoDiario: number
   return null
 }
 
-function caloriasConRegla(regla: ReglaDeProteccion | null, gastoDiario: number, objetivo: Objetivo) {
+function caloriasObjetivoSegunRegla(regla: ReglaDeProteccion | null, gastoDiario: number, objetivo: Objetivo) {
   if (regla === 'bajo-peso' || regla === 'gasto-bajo') return gastoDiario
   if (regla === 'suelo-de-calorias') return SUELO_DE_CALORIAS
   return gastoDiario + AJUSTE_POR_OBJETIVO[objetivo]
@@ -66,7 +66,7 @@ export function calcular(datos: Datos): Resultado {
   const metabolismoEnReposo = 10 * peso + 6.25 * talla - 5 * edad + (sexo === 'hombre' ? 5 : -161)
   const gastoDiario = metabolismoEnReposo * MULTIPLICADOR_POR_NIVEL_DE_ACTIVIDAD[actividad]
   const regla = reglaDeProteccion(datos, gastoDiario)
-  const caloriasObjetivo = caloriasConRegla(regla, gastoDiario, objetivo)
+  const caloriasObjetivo = caloriasObjetivoSegunRegla(regla, gastoDiario, objetivo)
 
   const proteina = Math.min(
     PROTEINA_POR_KG[regla === 'bajo-peso' ? 'mantener' : objetivo] * peso,
